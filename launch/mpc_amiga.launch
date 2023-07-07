@@ -1,0 +1,7 @@
+<launch>
+	<arg name = "fresh_start"/> 
+	<param name="pruning_status" type="bool" value="1" />
+	<param name="nav_status" type="bool" value="1" />
+	<node pkg="mpc_amiga" type="mpc_warthog_v4.py" name="robot_controller" output="screen" args="$(arg fresh_start)" />
+
+</launch>
