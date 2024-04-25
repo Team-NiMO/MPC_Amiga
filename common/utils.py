@@ -12,9 +12,12 @@ from sklearn.neighbors import NearestNeighbors
 import shutil
 #import pandas as pd
 
-def get_course_from_file(dl=1.0):
+def get_course_from_file(is_global_nav, dl=1.0):
     path = '/home/amiga/navigation_ws/src/mpc_controller/gps_coordinates/'
-    file_name = 'rows_real'
+    if is_global_nav:
+        file_name = 'barn_field_waypoints'
+    else:
+        file_name = 'field_waypoints'
     full_path = path + file_name + '.txt'
     points = np.loadtxt(full_path, delimiter=',', dtype=float) #test
     ax = points[:,0].tolist()
@@ -93,6 +96,19 @@ def get_switch_back_course(dl=1.0):
     ck.extend(ck2)
 
     return cx, cy, cyaw, ck
+
+def get_online_course(ax, ay, dl=0.1):
+    cx, cy, cyaw, ck, s = cubic_spline_planner.calc_spline_course(
+        ax, ay, ds=dl)
+    return cx, cy, cyaw, ck
+
+def save_path_backup(ax, ay):
+    path = '/home/amiga/navigation_ws/src/mpc_controller/gps_coordinates/'
+    filename = 'field_waypoints'
+    full_path = path + filename + '.txt'
+    with open(full_path, 'w') as file:
+        for x,y in zip(ax, ay):
+            file.write(f'{x}, {y}, 0.0, 0.0, 0.0, 0.0')
 
 def get_pruning_points(is_fresh_start):
 

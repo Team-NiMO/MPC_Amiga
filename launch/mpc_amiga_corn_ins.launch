@@ -1,0 +1,8 @@
+<launch>
+	<arg name = "fresh_start"/> 
+	<arg name = "barn_field"/> 
+	<param name="pruning_status" type="bool" value="1" />
+	<param name="nav_status" type="bool" value="1" />
+	<node pkg="mpc_amiga" type="mpc_corn_insertion.py" name="robot_controller" output="screen" args="$(arg fresh_start) $(arg barn_field)" />
+
+</launch>
