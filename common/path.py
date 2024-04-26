@@ -2,7 +2,7 @@ import numpy as np
 
 class A_star_path:
 
-    def __init__(self, x_list, y_list, yaw_list):
+    def __init__(self, x_list=[], y_list=[],yaw_list=[]):
         if len(x_list)>0 and len(y_list) > 0 and len(yaw_list)>0:
             self.x_path = x_list
             self.y_path = y_list

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import rospy
 import numpy as np
 import acado
@@ -9,19 +9,22 @@ import scipy.io as sio
 import common.global_defs as defs
 import common.utils as utils
 import common.robot_motion_skid_steer as bot_model
-from common. path import Path
+from common.path import A_star_path
 #import common.utils_viz as visual_tools
 
 import sys
 import os
 import time
-from nav_msgs.msg import A_star_path
+from nav_msgs.msg import Path
 
 
 from nav_msgs.msg import Odometry, Path
 from geometry_msgs.msg import PoseStamped, Pose, Twist, Point
 from visualization_msgs.msg import Marker, MarkerArray
 import tf
+
+current_dir = os.path.dirname(__file__)
+
 
 first_seen = False
 isInitState = True
@@ -112,9 +115,9 @@ def callbackPathPlanning(path_msg):
     x_path = []
     y_path = []
     complete_path = path_msg.poses
-    for pose in complete_path.pose:
-        x_path.append(pose.position.x)
-        y_path.append(pose.position.y)
+    for pose in complete_path:
+        x_path.append(pose.pose.position.x)
+        y_path.append(pose.pose.position.y)
     if len(x_path) > 0:
         global_path.update_path(x_path, y_path)
     else:
@@ -229,7 +232,7 @@ def delete_pruning_points_from_file():
     global nav_glob_finished
     if can_delete_file:
         try:
-            path = "/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/gps_coordinates/"
+            path = os.path.join(current_dir, '../gps_coordinates/')
             filename = "pruning_points_real"
             full_path = path + filename + "_copied.txt"
             a_file = open(full_path, "r")
@@ -294,6 +297,7 @@ def linear_mpc_control(xref, xbar, x0, dref):
     return oa_mpc, ow_mpc, ox_mpc, oy_mpc, oyaw_mpc, ov_mpc  
 
 def mpc_node():
+    
     global can_delete_file
     global yaw_prev_
     global latest_yaw
@@ -302,6 +306,7 @@ def mpc_node():
     target_ind_move = 0
 
     rospy.init_node('mpc_warthog', anonymous=True)
+    rate = rospy.Rate(10) # 10hz
 
     args = rospy.myargv(argv=sys.argv)
     #print(args)
@@ -313,7 +318,7 @@ def mpc_node():
     #print(is_fresh_start)
 
     odomSubs = rospy.Subscriber("/odometry/filtered", Odometry, callbackFilteredOdom)
-    pathSubs = rospy.Subscriber("/path", Path, callbackPathPlanning)
+    pathSubs = rospy.Subscriber("/visualization_path", Path, callbackPathPlanning)
     controlPub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
     pathPub = rospy.Publisher("/aPath", Path, queue_size=10)
 
@@ -322,25 +327,34 @@ def mpc_node():
     init_accel = 0.1
     #generate the paths
     dl = 0.1
-    
-    global_cx, global_cy, global_cyaw, global_ck = utils.get_course_from_file(is_global_nav, dl)
-
     #sio.savemat('ck.mat', {'ck':global_ck})
     #sio.savemat('ck.mat', {'ck':ck})
 
     #get the pruning points
-    ppx, ppy = utils.get_pruning_points(is_fresh_start) #if is a fresh_start use the original_file, otherwise use the cropped one
+    if is_global_nav=='1':
+        ppx, ppy = utils.get_pruning_points(is_fresh_start) #if is a fresh_start use the original_file, otherwise use the cropped one
+    else:
+        ppx = []
+        ppy = []
+                
 
-    #global_sp = utils.calc_speed_profile(global_cx, global_cy, global_cyaw, defs.TARGET_SPEED)
-    global_sp = utils.calc_speed_profile_1(global_cx, global_cy, global_cyaw, global_ck)
-    #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/cx_global.mat', {'global_cx':global_cx})
-    #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/cy_global.mat', {'global_cy':global_cy})
-    #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/cyaw_global.mat', {'global_cyaw':global_cyaw})
-    rate = rospy.Rate(10) # 10hz
+    global_cx, global_cy, global_cyaw, global_ck = utils.get_course_from_file(is_global_nav, dl)
+
+    if len(global_cx)> 0:
+        #global_sp = utils.calc_speed_profile(global_cx, global_cy, global_cyaw, defs.TARGET_SPEED)
+        global_sp = utils.calc_speed_profile_1(global_cx, global_cy, global_cyaw, global_ck)
+        #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/cx_global.mat', {'global_cx':global_cx})
+        #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/cy_global.mat', {'global_cy':global_cy})
+        #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/cyaw_global.mat', {'global_cyaw':global_cyaw})
+        global_cyaw = utils.smooth_yaw(global_cyaw)  
+    else:
+        global_sp = []
+        global_cyaw = []        
     
     cx, cy, cyaw, ck, sp = None, None, None, None, None
 
-    
+    ow, oa = None, None
+      
 
     # initial yaw compensation
     #if robot_state.yaw - cyaw[0] >= math.pi:
@@ -360,17 +374,17 @@ def mpc_node():
         #target_ind+=defs.OFFSET_TO_GOAL #+20
     #goal = [cx[-1], cy[-1]]
     
-    ow, oa = None, None
-    global_cyaw = utils.smooth_yaw(global_cyaw)
+
     #sio.savemat('cyaw_smoothed.mat', {'cyaw_smoothed':cyaw})
     index_pruning = 0 #what if i put 1 here???
     #latest_yaw = robot_state.yaw
     #delete_pruning_points_from_file()
     done_navigation = False
     while not rospy.is_shutdown():
-
         if global_path.new_path_acq:
+            print("NEW INTER-ROW PATH RECEIVED!!!")
             global_path.read_path()
+            print("x_path", global_path.x_path)
             global_cx, global_cy, global_cyaw, global_ck = utils.get_online_course(global_path.x_path, global_path.y_path)
             global_cyaw = utils.smooth_yaw(global_cyaw)
             utils.save_path_backup(global_path.x_path, global_path.y_path)            
@@ -380,127 +394,127 @@ def mpc_node():
             init_route = True
 
         publish_marker(ppx, ppy)
-        if init_route:
-            can_delete_file = True
-            robot_state.get_current_meas_state()
-            print("Target_ind", target_ind)
-            if index_pruning < len(ppx):
-                if not init_route:
-                    #target_ind = target_ind_move - defs.OFFSET_TO_GOAL
-                    target_ind = utils.calc_nearest_index_pruning(robot_state.x, robot_state.y, global_cx, global_cy, 0)
+        if len(global_cx)>0:
+            if init_route:
+                can_delete_file = True
+                robot_state.get_current_meas_state()
+                print("Target_ind", target_ind)
+                if index_pruning < len(ppx):
+                    if not init_route:
+                        #target_ind = target_ind_move - defs.OFFSET_TO_GOAL
+                        target_ind = utils.calc_nearest_index_pruning(robot_state.x, robot_state.y, global_cx, global_cy, 0)
 
-                cx, cy, cyaw, ck, sp = utils.crop_global_plan(global_cx, global_cy, global_cyaw, global_ck, global_sp, ppx[index_pruning], ppy[index_pruning], target_ind)
-                #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/cx_test.mat', {'cx':cx})
-                #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/cy_test.mat', {'cy':cy})
-                #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/cyaw_test.mat', {'cyaw':cyaw})
-                #print(len(cx))
-                goal = [cx[-defs.OFFSET_TO_GOAL], cy[-defs.OFFSET_TO_GOAL]]
-                #print(target_ind)
-                offset_stop = defs.OFFSET_TO_GOAL
-            else:
-                target_ind_ = utils.calc_nearest_index_pruning(robot_state.x, robot_state.y, global_cx, global_cy, 0)
-                cx = global_cx[target_ind_:]
-                cy = global_cy[target_ind_:]
-                cyaw = global_cyaw[target_ind_:]
-                ck = global_ck[target_ind_:]
-                sp = global_sp[target_ind_:]
-                goal = [cx[-1], cy[-1]]
-                #print(goal)
-                offset_stop = 0
-            #print(goal)
-
-            target_ind, _ = utils.calc_nearest_index(robot_state, cx, cy, cyaw, 0)
-
-            # initial yaw compensation
-            if robot_state.yaw - cyaw[target_ind] >= math.pi:
-                robot_state.yaw -= math.pi * 2.0
-            elif robot_state.yaw - cyaw[target_ind] <= -math.pi:
-                robot_state.yaw += math.pi * 2.0                        
-            
-            #latest_read = robot_state.yaw
-            #init_route = 0           
-
-
-        if not init_route:
-            flag_start_stragiht = True
-        else:
-            current_time_ = rospy.Time.now().to_sec()
-            rospy.set_param('nav_stat', False)
-            index_pruning+=1
-            target_ind_move = target_ind
-                
-            init_route = 0
-
-
-        robot_state.get_current_meas_state()
-        #   robot_state.yaw = -1*robot_state.yaw
-        #xref, target_ind_move, dref = utils.calc_ref_trajectory(
-        #    robot_state, cx, cy, cyaw, ck, sp, dl, dt, target_ind_move)            
-        xref, target_ind_move, dref = utils.calc_ref_trajectory_v1(
-            robot_state, cx, cy, cyaw, ck, sp, init_accel, dl, dt, target_ind_move)
-        pubish_single_marker(cx[target_ind_move], cy[target_ind_move])
-        #x_ref_all = np.append(x_ref_all, xref,axis = 1)
-        #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/x_ref_all.mat', {'x_ref_all':x_ref_all})
-        #print(target_ind_move)
-        
-
-        if robot_state.yaw - cyaw[target_ind_move] >= math.pi:
-            robot_state.yaw -= math.pi * 2.0
-        elif robot_state.yaw - cyaw[target_ind_move] <= -math.pi:
-            robot_state.yaw += math.pi * 2.0
-        #publish_marker(Marker.POINTS, xref)
-        #print(xref[3,:])
-        oa, ow, ox, oy, oyaw, ov = iterative_linear_mpc_control(
-            xref, dref, oa, ow)
-
-        if ow is not None:
-            wi, ai = ow[0], oa[0]
-                
-        # warm-up solver
-        if True: #target_ind < 10:
-            if abs(robot_state.v) < 0.05:
-                if sp[target_ind_move]<0:
-                    ai = -0.1
+                    cx, cy, cyaw, ck, sp = utils.crop_global_plan(global_cx, global_cy, global_cyaw, global_ck, global_sp, ppx[index_pruning], ppy[index_pruning], target_ind)
+                    #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/cx_test.mat', {'cx':cx})
+                    #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/cy_test.mat', {'cy':cy})
+                    #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/cyaw_test.mat', {'cyaw':cyaw})
+                    #print(len(cx))
+                    goal = [cx[-defs.OFFSET_TO_GOAL], cy[-defs.OFFSET_TO_GOAL]]
+                    #print(target_ind)
+                    offset_stop = defs.OFFSET_TO_GOAL
                 else:
-                    #print(robot_state.v)
-                    ai = init_accel
-                    wi = 0.01
+                    target_ind_ = utils.calc_nearest_index_pruning(robot_state.x, robot_state.y, global_cx, global_cy, 0)
+                    cx = global_cx[target_ind_:]
+                    cy = global_cy[target_ind_:]
+                    cyaw = global_cyaw[target_ind_:]
+                    ck = global_ck[target_ind_:]
+                    sp = global_sp[target_ind_:]
+                    goal = [cx[-1], cy[-1]]
+                    #print(goal)
+                    offset_stop = 0
+                #print(goal)
 
-        init_accel = oa[0]
-        #print(goal)
-        #apply the control signals
-        #dt_cmd = rospy.Time.now().to_sec() - current_time.to_sec()
+                target_ind, _ = utils.calc_nearest_index(robot_state, cx, cy, cyaw, 0)
 
-        goalData = utils.check_goal(robot_state.get_current_pos_meas(), goal, target_ind_move, len(cx)-offset_stop)
-        done_navigation = goalData[0]
-        #print(dt_cmd)
-        #warn_w = False
-        #if is_fresh_start == "0" or diff_prune != 0:
-        if is_fresh_start == "0" or flag_start_stragiht:    
-            latest_time = rospy.Time.now().to_sec()
-            if (abs(latest_time - current_time_) < 2.0):
-                w_i = 0.0 
-                warn_w = True
-                ow = [0.0] * defs.T
-                # print("Here")
-                #yaw_prev_ = latest_yaw#((-yaw_prev_ + math.pi) % (2*math.pi) - math.pi)*-1
-                #if robot_state.yaw - cyaw[target_ind] >= math.pi:
-                #    robot_state.yaw -= math.pi * 2.0
-                #elif robot_state.yaw - cyaw[target_ind] <= -math.pi:
-                #    robot_state.yaw += math.pi * 2.0                        
+                # initial yaw compensation
+                if robot_state.yaw - cyaw[target_ind] >= math.pi:
+                    robot_state.yaw -= math.pi * 2.0
+                elif robot_state.yaw - cyaw[target_ind] <= -math.pi:
+                    robot_state.yaw += math.pi * 2.0                        
+                
+                #latest_read = robot_state.yaw
+                #init_route = 0           
 
+
+            if not init_route:
+                flag_start_stragiht = True
             else:
-                flag_start_stragiht = False
-                warn_w = False
-        print('Yaw:', robot_state.yaw)
-        print('Goal yaw', cyaw[target_ind_move])
-        print(warn_w)
-        cmd_command = make_twist_msg(ai, wi, goalData, warn_w, robot_state.yaw)
+                current_time_ = rospy.Time.now().to_sec()
+                rospy.set_param('nav_stat', False)
+                index_pruning+=1
+                target_ind_move = target_ind
+                    
+                init_route = 0
 
-        # if nav_glob_finished:
-        #     print("Global navigation finished - Exiting ...")
-        #     break
-        controlPub.publish(cmd_command)
+            robot_state.get_current_meas_state()
+            #   robot_state.yaw = -1*robot_state.yaw
+            #xref, target_ind_move, dref = utils.calc_ref_trajectory(
+            #    robot_state, cx, cy, cyaw, ck, sp, dl, dt, target_ind_move)            
+            xref, target_ind_move, dref = utils.calc_ref_trajectory_v1(
+                robot_state, cx, cy, cyaw, ck, sp, init_accel, dl, dt, target_ind_move)
+            pubish_single_marker(cx[target_ind_move], cy[target_ind_move])
+            #x_ref_all = np.append(x_ref_all, xref,axis = 1)
+            #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/x_ref_all.mat', {'x_ref_all':x_ref_all})
+            #print(target_ind_move)
+            
+
+            if robot_state.yaw - cyaw[target_ind_move] >= math.pi:
+                robot_state.yaw -= math.pi * 2.0
+            elif robot_state.yaw - cyaw[target_ind_move] <= -math.pi:
+                robot_state.yaw += math.pi * 2.0
+            #publish_marker(Marker.POINTS, xref)
+            #print(xref[3,:])
+            oa, ow, ox, oy, oyaw, ov = iterative_linear_mpc_control(
+                xref, dref, oa, ow)
+
+            if ow is not None:
+                wi, ai = ow[0], oa[0]
+                    
+            # warm-up solver
+            if True: #target_ind < 10:
+                if abs(robot_state.v) < 0.05:
+                    if sp[target_ind_move]<0:
+                        ai = -0.1
+                    else:
+                        #print(robot_state.v)
+                        ai = init_accel
+                        wi = 0.01
+
+            init_accel = oa[0]
+            #print(goal)
+            #apply the control signals
+            #dt_cmd = rospy.Time.now().to_sec() - current_time.to_sec()
+
+            goalData = utils.check_goal(robot_state.get_current_pos_meas(), goal, target_ind_move, len(cx)-offset_stop)
+            done_navigation = goalData[0]
+            #print(dt_cmd)
+            #warn_w = False
+            #if is_fresh_start == "0" or diff_prune != 0:
+            if is_fresh_start == "0" or flag_start_stragiht:    
+                latest_time = rospy.Time.now().to_sec()
+                if (abs(latest_time - current_time_) < 2.0):
+                    w_i = 0.0 
+                    warn_w = True
+                    ow = [0.0] * defs.T
+                    # print("Here")
+                    #yaw_prev_ = latest_yaw#((-yaw_prev_ + math.pi) % (2*math.pi) - math.pi)*-1
+                    #if robot_state.yaw - cyaw[target_ind] >= math.pi:
+                    #    robot_state.yaw -= math.pi * 2.0
+                    #elif robot_state.yaw - cyaw[target_ind] <= -math.pi:
+                    #    robot_state.yaw += math.pi * 2.0                        
+
+                else:
+                    flag_start_stragiht = False
+                    warn_w = False
+            print('Yaw:', robot_state.yaw)
+            print('Goal yaw', cyaw[target_ind_move])
+            print(warn_w)
+            cmd_command = make_twist_msg(ai, wi, goalData, warn_w, robot_state.yaw)
+
+            # if nav_glob_finished:
+            #     print("Global navigation finished - Exiting ...")
+            #     break
+            controlPub.publish(cmd_command)
             
 
         

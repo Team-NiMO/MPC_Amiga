@@ -1,6 +1,10 @@
 import numpy as np
 import sys, os
-sys.path.append('/home/amiga/navigation_ws/src/mpc_controller/common')	
+from pathlib import Path
+
+current_dir = os.path.dirname(__file__)
+sys.path.append(current_dir)	
+
 from . import cubic_spline_planner
 import math
 from . import global_defs as defs
@@ -13,17 +17,27 @@ import shutil
 #import pandas as pd
 
 def get_course_from_file(is_global_nav, dl=1.0):
-    path = '/home/amiga/navigation_ws/src/mpc_controller/gps_coordinates/'
-    if is_global_nav:
+    path = os.path.join(current_dir, '../gps_coordinates/') 
+    if is_global_nav=='1':
         file_name = 'barn_field_waypoints'
     else:
         file_name = 'field_waypoints'
     full_path = path + file_name + '.txt'
-    points = np.loadtxt(full_path, delimiter=',', dtype=float) #test
-    ax = points[:,0].tolist()
-    ay = points[:,1].tolist()
-    cx, cy, cyaw, ck, s = cubic_spline_planner.calc_spline_course(
-        ax,ay,ds=dl)
+    cx = []
+    cy = []
+    cyaw = []
+    ck = []
+    if os.path.isfile(full_path):
+        points = np.loadtxt(full_path, delimiter=',', dtype=float) #test  
+        if len(points)>0:      
+            ax = points[:,0].tolist()
+            ay = points[:,1].tolist()
+            cx, cy, cyaw, ck, s = cubic_spline_planner.calc_spline_course(
+                ax,ay,ds=dl)
+    else:
+        print("FILE NOT FOUND, RETURNING EMPTY ARRAYS!!!")
+        print("Trying to read filename: ", file_name)
+
     return cx, cy, cyaw, ck
 
 def get_vineyard_course(dl=1.0):
@@ -103,17 +117,17 @@ def get_online_course(ax, ay, dl=0.1):
     return cx, cy, cyaw, ck
 
 def save_path_backup(ax, ay):
-    path = '/home/amiga/navigation_ws/src/mpc_controller/gps_coordinates/'
+    path = os.path.join(current_dir, '../gps_coordinates/') 
     filename = 'field_waypoints'
     full_path = path + filename + '.txt'
     with open(full_path, 'w') as file:
         for x,y in zip(ax, ay):
-            file.write(f'{x}, {y}, 0.0, 0.0, 0.0, 0.0')
+            file.write(f'{x}, {y}, 0.0, 0.0, 0.0, 0.0\n')
 
 def get_pruning_points(is_fresh_start):
 
-    path = '/home/amiga/navigation_ws/src/mpc_controller/gps_coordinates/'
-    filename = 'pruning_points_real'
+    path = os.path.join(current_dir, '../gps_coordinates/') 
+    filename = 'stopping_points'
     orig_src_full_path = path + filename + '.txt'
     copied_src_path = path + filename + '_copied.txt'
     if  is_fresh_start == "1":        
