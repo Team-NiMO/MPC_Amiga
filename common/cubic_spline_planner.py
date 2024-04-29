@@ -22,7 +22,7 @@ class Spline:
 
         self.nx = len(x)  # dimension of x
         h = np.diff(x)
-
+        
         # calc coefficient c
         self.a = [iy for iy in y]
 
@@ -30,7 +30,6 @@ class Spline:
         A = self.__calc_A(h)
         B = self.__calc_B(h)
         self.c = np.linalg.solve(A, B)
-        #  print(self.c1)
 
         # calc spline coefficient b and d
         for i in range(self.nx - 1):

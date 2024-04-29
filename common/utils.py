@@ -20,20 +20,30 @@ def get_course_from_file(is_global_nav, dl=1.0):
     path = os.path.join(current_dir, '../gps_coordinates/') 
     if is_global_nav=='1':
         file_name = 'barn_field_waypoints'
+        dl = 1.0
     else:
         file_name = 'field_waypoints'
+        dl = 0.5
     full_path = path + file_name + '.txt'
     cx = []
     cy = []
     cyaw = []
     ck = []
+
     if os.path.isfile(full_path):
         points = np.loadtxt(full_path, delimiter=',', dtype=float) #test  
         if len(points)>0:      
             ax = points[:,0].tolist()
             ay = points[:,1].tolist()
-            cx, cy, cyaw, ck, s = cubic_spline_planner.calc_spline_course(
-                ax,ay,ds=dl)
+            ayaw = points[:,3] #will assume it is in format ypr
+            if is_global_nav=='1':
+                cx, cy, cyaw, ck, s = cubic_spline_planner.calc_spline_course(
+                    ax,ay,ds=dl)
+            else:
+                cx = ax
+                cy = ay
+                cyaw = ayaw
+                ck = calc_curvature(ax, ay)
     else:
         print("FILE NOT FOUND, RETURNING EMPTY ARRAYS!!!")
         print("Trying to read filename: ", file_name)
@@ -111,18 +121,37 @@ def get_switch_back_course(dl=1.0):
 
     return cx, cy, cyaw, ck
 
+
+def calc_curvature(x, y):
+    x = np.array(x)
+    y = np.array(y)
+    # Assuming equal spacing between points
+    t = np.arange(len(x))
+    
+    # Central differences for first derivatives
+    dx = np.gradient(x, t)
+    dy = np.gradient(y, t)
+    
+    # Second derivatives
+    ddx = np.gradient(dx, t)
+    ddy = np.gradient(dy, t)
+    
+    # Curvature calculation
+    curvatures = np.abs(dx * ddy - dy * ddx) / (dx**2 + dy**2)**1.5
+    return curvatures.tolist()
+
 def get_online_course(ax, ay, dl=0.1):
     cx, cy, cyaw, ck, s = cubic_spline_planner.calc_spline_course(
         ax, ay, ds=dl)
     return cx, cy, cyaw, ck
 
-def save_path_backup(ax, ay):
+def save_path_backup(ax, ay, ayaw):
     path = os.path.join(current_dir, '../gps_coordinates/') 
     filename = 'field_waypoints'
     full_path = path + filename + '.txt'
     with open(full_path, 'w') as file:
-        for x,y in zip(ax, ay):
-            file.write(f'{x}, {y}, 0.0, 0.0, 0.0, 0.0\n')
+        for x,y, yaw in zip(ax, ay, ayaw):
+            file.write(f'{x}, {y}, 0.0, {yaw}, 0.0, 0.0\n') #will assume it is in format ypr
 
 def get_pruning_points(is_fresh_start):
 

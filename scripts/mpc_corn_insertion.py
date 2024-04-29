@@ -43,10 +43,11 @@ nav_glob_finished = False
 
 local_path_pub = rospy.Publisher("/pruning_points", MarkerArray, queue_size=10)
 single_marker_pub = rospy.Publisher("/local_goal_point", Marker, queue_size=10)
+local_goal_pub = rospy.Publisher("/local_end_point", Marker, queue_size=10)
 
 Q_mpc = np.diag([1.0, 1.0, 1.0, 1.0, 0.01])
 
-def pubish_single_marker(pose_x, pose_y):
+def pubish_single_marker(pose_x, pose_y, flag_goal=False):
     marker = Marker()
     marker.header.frame_id = 'odom'
     marker.type = marker.SPHERE
@@ -65,12 +66,21 @@ def pubish_single_marker(pose_x, pose_y):
     marker.scale.y = 0.5
     marker.scale.z = 0.5
 
-    marker.color.r = 0.
-    marker.color.g = 1.
-    marker.color.b = 1.
-    marker.color.a = 1.
+    if not flag_goal:
+        marker.color.r = 0.
+        marker.color.g = 1.
+        marker.color.b = 1.
+        marker.color.a = 1.
+        single_marker_pub.publish(marker)
+    else:
+        rgb = [0, 1., 0., 1.]
+        marker.color.r = 0.
+        marker.color.g = 1.
+        marker.color.b = 0.
+        marker.color.a = 1.
+        local_goal_pub.publish(marker)
 
-    single_marker_pub.publish(marker)
+    
 
 def publish_marker(marker_pose_x, marker_pose_y, scale=[0.5,0.5,0.05], color=[1.,0.,0.]):
     markers_array_msg = MarkerArray()
@@ -114,12 +124,16 @@ def publish_marker(marker_pose_x, marker_pose_y, scale=[0.5,0.5,0.05], color=[1.
 def callbackPathPlanning(path_msg):
     x_path = []
     y_path = []
+    yaw_path = []
     complete_path = path_msg.poses
     for pose in complete_path:
         x_path.append(pose.pose.position.x)
         y_path.append(pose.pose.position.y)
+        quat_path = pose.pose.orientation
+        euler = tf.transformations.euler_from_quaternion([quat_path.x, quat_path.y, quat_path.z, quat_path.w])
+        yaw_path.append(euler[2])#RPY
     if len(x_path) > 0:
-        global_path.update_path(x_path, y_path)
+        global_path.update_path(x_path, y_path, yaw_path)
     else:
         print("Received an empty path!")
     
@@ -339,7 +353,6 @@ def mpc_node():
                 
 
     global_cx, global_cy, global_cyaw, global_ck = utils.get_course_from_file(is_global_nav, dl)
-
     if len(global_cx)> 0:
         #global_sp = utils.calc_speed_profile(global_cx, global_cy, global_cyaw, defs.TARGET_SPEED)
         global_sp = utils.calc_speed_profile_1(global_cx, global_cy, global_cyaw, global_ck)
@@ -383,17 +396,23 @@ def mpc_node():
     while not rospy.is_shutdown():
         if global_path.new_path_acq:
             print("NEW INTER-ROW PATH RECEIVED!!!")
-            global_path.read_path()
-            print("x_path", global_path.x_path)
-            global_cx, global_cy, global_cyaw, global_ck = utils.get_online_course(global_path.x_path, global_path.y_path)
+            global_path.read_path()            
+            global_cx, global_cy, global_cyaw = global_path.x_path, global_path.y_path, global_path.yaw_path
+            global_ck = utils.calc_curvature(global_path.x_path, global_path.y_path)
             global_cyaw = utils.smooth_yaw(global_cyaw)
-            utils.save_path_backup(global_path.x_path, global_path.y_path)            
-            ppx = global_cx[-1]
-            ppy = global_cy[-1]
+            print("global_yaw", global_cyaw)
+            utils.save_path_backup(global_path.x_path, global_path.y_path, global_cyaw)            
+            ppx = [global_cx[-1], global_cx[-1]]
+            ppy = [global_cy[-1], global_cy[-1]]
             global_sp = utils.calc_speed_profile_1(global_cx, global_cy, global_cyaw, global_ck)
             init_route = True
+        if is_global_nav=='1':
+            publish_marker(ppx, ppy)
+        else:
+            if len(ppx)>0:
+                    pubish_single_marker(ppx[0], ppy[0], True)
 
-        publish_marker(ppx, ppy)
+
         if len(global_cx)>0:
             if init_route:
                 can_delete_file = True
@@ -408,8 +427,11 @@ def mpc_node():
                     #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/cx_test.mat', {'cx':cx})
                     #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/cy_test.mat', {'cy':cy})
                     #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/cyaw_test.mat', {'cyaw':cyaw})
-                    #print(len(cx))
-                    goal = [cx[-defs.OFFSET_TO_GOAL], cy[-defs.OFFSET_TO_GOAL]]
+                    if is_global_nav=='1':
+                        goal = [cx[-defs.OFFSET_TO_GOAL], cy[-defs.OFFSET_TO_GOAL]]
+                    else:
+                        goal = [ppx[0], ppy[0]]
+
                     #print(target_ind)
                     offset_stop = defs.OFFSET_TO_GOAL
                 else:
@@ -419,7 +441,10 @@ def mpc_node():
                     cyaw = global_cyaw[target_ind_:]
                     ck = global_ck[target_ind_:]
                     sp = global_sp[target_ind_:]
-                    goal = [cx[-1], cy[-1]]
+                    if is_global_nav=='1' or len(ppx)==0 :
+                        goal = [cx[-1], cy[-1]]
+                    else:
+                        goal = [ppx[0], ppy[0]]
                     #print(goal)
                     offset_stop = 0
                 #print(goal)
