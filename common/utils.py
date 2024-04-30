@@ -16,19 +16,23 @@ from sklearn.neighbors import NearestNeighbors
 import shutil
 #import pandas as pd
 
-def get_course_from_file(is_global_nav, dl=1.0):
+def get_course_from_file(is_global_nav, load_backup, dl=1.0):
+    cx = []
+    cy = []
+    cyaw = []
+    ck = []
+
+    if not is_global_nav and not load_backup:
+        return cx, cy, cyaw, ck
+
     path = os.path.join(current_dir, '../gps_coordinates/') 
-    if is_global_nav=='1':
+    if is_global_nav:
         file_name = 'barn_field_waypoints'
         dl = 1.0
     else:
         file_name = 'field_waypoints'
         dl = 0.5
     full_path = path + file_name + '.txt'
-    cx = []
-    cy = []
-    cyaw = []
-    ck = []
 
     if os.path.isfile(full_path):
         points = np.loadtxt(full_path, delimiter=',', dtype=float) #test  

@@ -3,6 +3,7 @@ import rospy
 import numpy as np
 import acado
 import math
+import argparse
 
 import scipy.io as sio
 
@@ -46,6 +47,23 @@ single_marker_pub = rospy.Publisher("/local_goal_point", Marker, queue_size=10)
 local_goal_pub = rospy.Publisher("/local_end_point", Marker, queue_size=10)
 
 Q_mpc = np.diag([1.0, 1.0, 1.0, 1.0, 0.01])
+
+def parse_args(args):
+    args = args[1:]
+    parser = argparse.ArgumentParser(description='Changing global to local planning')
+    parser.add_argument('fresh_start', type=str, help='Mode of operation')
+    parser.add_argument('--barn_field', type=lambda x: (str(x).lower() == 'true'), default=False, help='Enable or disable feature')
+    parser.add_argument('--load_backup_plan', type=lambda x: (str(x).lower() == 'true'), default=False, help='Enable or disable feature')
+    parsed_args = parser.parse_args(args)
+    is_fresh_start = parsed_args.fresh_start
+    is_global_nav = parsed_args.barn_field
+    load_backup = parsed_args.load_backup_plan
+    # print(is_fresh_start)
+    # print(args)
+    if len(args)!=5:
+        print("ERROR:Provide fresh_start, global_local and load_backup arguments ")
+        sys.exit(1)    
+    return is_fresh_start, is_global_nav, load_backup
 
 def pubish_single_marker(pose_x, pose_y, flag_goal=False):
     marker = Marker()
@@ -322,14 +340,11 @@ def mpc_node():
     rospy.init_node('mpc_warthog', anonymous=True)
     rate = rospy.Rate(10) # 10hz
 
-    args = rospy.myargv(argv=sys.argv)
-    #print(args)
-    if len(args)!=3:
-        print("ERROR:Provide fresh_start and global_local arguments ")
-        sys.exit(1)
-    is_fresh_start = args[1]
-    is_global_nav = args[2] #true for starting in the barn, false to start in the middle of the row
-    #print(is_fresh_start)
+    is_fresh_start, is_global_nav, load_backup = parse_args(rospy.myargv(argv=sys.argv))
+
+    # is_fresh_start = args[1]
+    # is_global_nav = int(args[2]) #true for starting in the barn, false to start in the middle of the row
+    # load_backup = int(args[3]) #true for loading a inter-row plan from the file
 
     odomSubs = rospy.Subscriber("/odometry/filtered", Odometry, callbackFilteredOdom)
     pathSubs = rospy.Subscriber("/visualization_path", Path, callbackPathPlanning)
@@ -345,14 +360,13 @@ def mpc_node():
     #sio.savemat('ck.mat', {'ck':ck})
 
     #get the pruning points
-    if is_global_nav=='1':
+    if is_global_nav:
         ppx, ppy = utils.get_pruning_points(is_fresh_start) #if is a fresh_start use the original_file, otherwise use the cropped one
     else:
         ppx = []
-        ppy = []
-                
+        ppy = []              
 
-    global_cx, global_cy, global_cyaw, global_ck = utils.get_course_from_file(is_global_nav, dl)
+    global_cx, global_cy, global_cyaw, global_ck = utils.get_course_from_file(is_global_nav, load_backup, dl)
     if len(global_cx)> 0:
         #global_sp = utils.calc_speed_profile(global_cx, global_cy, global_cyaw, defs.TARGET_SPEED)
         global_sp = utils.calc_speed_profile_1(global_cx, global_cy, global_cyaw, global_ck)
@@ -366,8 +380,7 @@ def mpc_node():
     
     cx, cy, cyaw, ck, sp = None, None, None, None, None
 
-    ow, oa = None, None
-      
+    ow, oa = None, None   
 
     # initial yaw compensation
     #if robot_state.yaw - cyaw[0] >= math.pi:
@@ -406,7 +419,7 @@ def mpc_node():
             ppy = [global_cy[-1], global_cy[-1]]
             global_sp = utils.calc_speed_profile_1(global_cx, global_cy, global_cyaw, global_ck)
             init_route = True
-        if is_global_nav=='1':
+        if is_global_nav:
             publish_marker(ppx, ppy)
         else:
             if len(ppx)>0:
@@ -427,7 +440,7 @@ def mpc_node():
                     #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/cx_test.mat', {'cx':cx})
                     #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/cy_test.mat', {'cy':cy})
                     #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/cyaw_test.mat', {'cyaw':cyaw})
-                    if is_global_nav=='1':
+                    if is_global_nav:
                         goal = [cx[-defs.OFFSET_TO_GOAL], cy[-defs.OFFSET_TO_GOAL]]
                     else:
                         goal = [ppx[0], ppy[0]]
@@ -441,7 +454,7 @@ def mpc_node():
                     cyaw = global_cyaw[target_ind_:]
                     ck = global_ck[target_ind_:]
                     sp = global_sp[target_ind_:]
-                    if is_global_nav=='1' or len(ppx)==0 :
+                    if is_global_nav or len(ppx)==0 :
                         goal = [cx[-1], cy[-1]]
                     else:
                         goal = [ppx[0], ppy[0]]
