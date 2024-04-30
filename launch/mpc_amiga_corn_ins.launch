@@ -1,6 +1,6 @@
 <launch>
 	<arg name = "fresh_start"/> 
-	<arg name = "barn_field" default="false"/> 
+	<arg name = "barn_field" default="true"/> 
 	<arg name = "load_backup_plan" default="false"/>
 	<param name="pruning_status" type="bool" value="1" />
 	<param name="nav_status" type="bool" value="1" />
