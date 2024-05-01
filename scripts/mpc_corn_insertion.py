@@ -352,7 +352,7 @@ def mpc_node():
     pathPub = rospy.Publisher("/aPath", Path, queue_size=10)
 
     last_time = rospy.Time.now().to_sec()
-
+    rospy.set_param('nav_stat', False)
     init_accel = 0.1
     #generate the paths
     dl = 0.1
