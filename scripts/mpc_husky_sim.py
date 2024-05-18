@@ -188,7 +188,7 @@ def callbackFilteredOdom(odom_msg):
     w_meas = odom_msg.twist.twist.angular.z
     
     #yaw_inRange = euler_meas[2]%(2*math.pi)
-    yaw_inRange = utils.wrapTopm2Pi(euler_meas[2], yaw_prev_)
+    yaw_inRange = (euler_meas[2] + math.pi) % (2 * math.pi) - math.pi#utils.wrapTopm2Pi(euler_meas[2], yaw_prev_)
     #if yaw_inRange < 0:
     #    yaw_inRange = 2*math.pi + yaw_inRange
     #elif yaw_inRange > 2*math.pi:
@@ -309,8 +309,7 @@ def mpc_node():
     is_fresh_start = args[1]
     #print(is_fresh_start)
 
-    odomSubs = rospy.Subscriber("/odometry/filtered_odom", Odometry, callbackFilteredOdom)
-    # odomSubs = rospy.Subscriber("/odometry/filtered", Odometry, callbackFilteredOdom)
+    odomSubs = rospy.Subscriber("/odometry/filtered", Odometry, callbackFilteredOdom)
     controlPub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
     pathPub = rospy.Publisher("/aPath", Path, queue_size=10)
 
@@ -321,8 +320,8 @@ def mpc_node():
     #generate the paths
     dl = 0.1
     #global_cx, global_cy, global_cyaw, global_ck = utils.get_vineyard_course(dl)
-    global_cx, global_cy, global_cyaw, global_ck = utils.get_course_from_file(True, False, dl)
-    # global_cx, global_cy, global_cyaw, global_ck = utils.get_course_from_file_legacy(dl)
+    # global_cx, global_cy, global_cyaw, global_ck = utils.get_course_from_file(True, False, dl)
+    global_cx, global_cy, global_cyaw, global_ck = utils.get_course_from_file_legacy(dl)
 
     #sio.savemat('ck.mat', {'ck':global_ck})
     #sio.savemat('ck.mat', {'ck':ck})

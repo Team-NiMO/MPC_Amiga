@@ -207,6 +207,7 @@ def make_twist_msg(accel, acc_omega, goalData, warn_w, yaw_meas):
     global vel_down
     global w_up
     global latest_yaw
+    is_global_nav_ = True
     dt_in = 0.1
     cmd = Twist()
     if not goalData[0]:
@@ -244,6 +245,7 @@ def make_twist_msg(accel, acc_omega, goalData, warn_w, yaw_meas):
             #latest_yaw = yaw_meas
             delete_pruning_points_from_file()
             rospy.set_param('nav_stat', True)
+            is_global_nav_ = False
             
         else:
             cmd.linear.x = cmd_vel_
@@ -257,7 +259,7 @@ def make_twist_msg(accel, acc_omega, goalData, warn_w, yaw_meas):
     cmd.angular.x = 0
     cmd.angular.y = 0
     
-    return cmd
+    return cmd, is_global_nav_
 
 def delete_pruning_points_from_file():
     global can_delete_file
@@ -366,7 +368,8 @@ def mpc_node():
         ppx = []
         ppy = []              
 
-    global_cx, global_cy, global_cyaw, global_ck = utils.get_course_from_file(is_global_nav, load_backup, dl)
+    # global_cx, global_cy, global_cyaw, global_ck = utils.get_course_from_file(is_global_nav, load_backup, dl)
+    global_cx, global_cy, global_cyaw, global_ck = utils.get_course_from_file_legacy(dl)
     if len(global_cx)> 0:
         #global_sp = utils.calc_speed_profile(global_cx, global_cy, global_cyaw, defs.TARGET_SPEED)
         global_sp = utils.calc_speed_profile_1(global_cx, global_cy, global_cyaw, global_ck)
@@ -409,6 +412,7 @@ def mpc_node():
     while not rospy.is_shutdown():
         if global_path.new_path_acq:
             print("NEW INTER-ROW PATH RECEIVED!!!")
+            rospy.set_param('nav_stat', False)
             global_path.read_path()            
             global_cx, global_cy, global_cyaw = global_path.x_path, global_path.y_path, global_path.yaw_path
             global_ck = utils.calc_curvature(global_path.x_path, global_path.y_path)
@@ -547,8 +551,8 @@ def mpc_node():
             print('Yaw:', robot_state.yaw)
             print('Goal yaw', cyaw[target_ind_move])
             print(warn_w)
-            cmd_command = make_twist_msg(ai, wi, goalData, warn_w, robot_state.yaw)
-
+            cmd_command, global_nav_finished = make_twist_msg(ai, wi, goalData, warn_w, robot_state.yaw)
+            is_global_nav = global_nav_finished #global nav finished is true is still in global nav, false if it finished
             # if nav_glob_finished:
             #     print("Global navigation finished - Exiting ...")
             #     break

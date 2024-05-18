@@ -14,7 +14,20 @@ import scipy.io as sio
 import csv
 from sklearn.neighbors import NearestNeighbors
 import shutil
+
+import pdb
 #import pandas as pd
+
+def get_course_from_file_legacy(dl=1.0):
+    path = os.path.join(current_dir, '../gps_coordinates/') 
+    file_name = 'barn_field_waypoints'
+    full_path = path + file_name + '.txt'
+    points = np.loadtxt(full_path, delimiter=',', dtype=float) #test
+    ax = points[:,0].tolist()
+    ay = points[:,1].tolist()
+    cx, cy, cyaw, ck, s = cubic_spline_planner.calc_spline_course(
+        ax,ay,ds=dl)
+    return cx, cy, cyaw, ck
 
 def get_course_from_file(is_global_nav, load_backup, dl=1.0):
     cx = []
@@ -40,14 +53,16 @@ def get_course_from_file(is_global_nav, load_backup, dl=1.0):
             ax = points[:,0].tolist()
             ay = points[:,1].tolist()
             ayaw = points[:,3] #will assume it is in format ypr
-            if is_global_nav=='1':
+            if is_global_nav:
                 cx, cy, cyaw, ck, s = cubic_spline_planner.calc_spline_course(
                     ax,ay,ds=dl)
+                return cx, cy, cyaw, ck
             else:
                 cx = ax
                 cy = ay
                 cyaw = ayaw
                 ck = calc_curvature(ax, ay)
+                return cx, cy, cyaw, ck
     else:
         print("FILE NOT FOUND, RETURNING EMPTY ARRAYS!!!")
         print("Trying to read filename: ", file_name)
