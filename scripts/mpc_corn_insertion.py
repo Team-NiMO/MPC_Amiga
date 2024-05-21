@@ -7,7 +7,7 @@ import argparse
 
 import scipy.io as sio
 
-import common.global_defs as defs
+import common.global_defs_corn_ins as defs
 import common.utils as utils
 import common.robot_motion_skid_steer as bot_model
 from common.path import A_star_path
@@ -368,8 +368,8 @@ def mpc_node():
         ppx = []
         ppy = []              
 
-    # global_cx, global_cy, global_cyaw, global_ck = utils.get_course_from_file(is_global_nav, load_backup, dl)
-    global_cx, global_cy, global_cyaw, global_ck = utils.get_course_from_file_legacy(dl)
+    global_cx, global_cy, global_cyaw, global_ck = utils.get_course_from_file(is_global_nav, load_backup, dl)
+    # global_cx, global_cy, global_cyaw, global_ck = utils.get_course_from_file_legacy(dl)
     if len(global_cx)> 0:
         #global_sp = utils.calc_speed_profile(global_cx, global_cy, global_cyaw, defs.TARGET_SPEED)
         global_sp = utils.calc_speed_profile_1(global_cx, global_cy, global_cyaw, global_ck)
@@ -377,6 +377,14 @@ def mpc_node():
         #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/cy_global.mat', {'global_cy':global_cy})
         #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/cyaw_global.mat', {'global_cyaw':global_cyaw})
         global_cyaw = utils.smooth_yaw(global_cyaw)  
+        if is_global_nav:
+            my_path = Path()
+            my_path.header.frame_id = 'odom'
+            for x,y in zip(global_cx, global_cy):
+                pose = PoseStamped()
+                pose.pose.position.x = x
+                pose.pose.position.y = y        
+                my_path.poses.append(pose)                    
     else:
         global_sp = []
         global_cyaw = []        
@@ -425,6 +433,7 @@ def mpc_node():
             init_route = True
         if is_global_nav:
             publish_marker(ppx, ppy)
+            pathPub.publish(my_path)
         else:
             if len(ppx)>0:
                     pubish_single_marker(ppx[0], ppy[0], True)

@@ -27,6 +27,7 @@ def get_course_from_file_legacy(dl=1.0):
     ay = points[:,1].tolist()
     cx, cy, cyaw, ck, s = cubic_spline_planner.calc_spline_course(
         ax,ay,ds=dl)
+    pdb.set_trace()
     return cx, cy, cyaw, ck
 
 def get_course_from_file(is_global_nav, load_backup, dl=1.0):
@@ -41,12 +42,12 @@ def get_course_from_file(is_global_nav, load_backup, dl=1.0):
     path = os.path.join(current_dir, '../gps_coordinates/') 
     if is_global_nav:
         file_name = 'barn_field_waypoints'
-        dl = 1.0
+        # dl = 1.0
     else:
         file_name = 'field_waypoints'
-        dl = 0.5
+        # dl = 0.5
     full_path = path + file_name + '.txt'
-
+    
     if os.path.isfile(full_path):
         points = np.loadtxt(full_path, delimiter=',', dtype=float) #test  
         if len(points)>0:      
@@ -56,6 +57,7 @@ def get_course_from_file(is_global_nav, load_backup, dl=1.0):
             if is_global_nav:
                 cx, cy, cyaw, ck, s = cubic_spline_planner.calc_spline_course(
                     ax,ay,ds=dl)
+                # pdb.set_trace()
                 return cx, cy, cyaw, ck
             else:
                 cx = ax
