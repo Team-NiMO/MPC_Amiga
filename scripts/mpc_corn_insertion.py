@@ -3,7 +3,6 @@ import rospy
 import numpy as np
 import acado
 import math
-import argparse
 
 import scipy.io as sio
 
@@ -47,23 +46,6 @@ single_marker_pub = rospy.Publisher("/local_goal_point", Marker, queue_size=10)
 local_goal_pub = rospy.Publisher("/local_end_point", Marker, queue_size=10)
 
 Q_mpc = np.diag([1.0, 1.0, 1.0, 1.0, 0.01])
-
-def parse_args(args):
-    args = args[1:]
-    parser = argparse.ArgumentParser(description='Changing global to local planning')
-    parser.add_argument('fresh_start', type=str, help='Mode of operation')
-    parser.add_argument('--barn_field', type=lambda x: (str(x).lower() == 'true'), default=False, help='Enable or disable feature')
-    parser.add_argument('--load_backup_plan', type=lambda x: (str(x).lower() == 'true'), default=False, help='Enable or disable feature')
-    parsed_args = parser.parse_args(args)
-    is_fresh_start = parsed_args.fresh_start
-    is_global_nav = parsed_args.barn_field
-    load_backup = parsed_args.load_backup_plan
-    # print(is_fresh_start)
-    # print(args)
-    if len(args)!=5:
-        print("ERROR:Provide fresh_start, global_local and load_backup arguments ")
-        sys.exit(1)    
-    return is_fresh_start, is_global_nav, load_backup
 
 def pubish_single_marker(pose_x, pose_y, flag_goal=False):
     marker = Marker()
@@ -202,12 +184,13 @@ def callbackFilteredOdom(odom_msg):
     #         last_time = current_time         
 
 #here I need to create the msg to send - chech in case of a carlike
-def make_twist_msg(accel, acc_omega, goalData, warn_w, yaw_meas):
+def make_twist_msg(accel, acc_omega, goalData, warn_w, yaw_meas, is_global_nav):
     global vel_up
     global vel_down
     global w_up
     global latest_yaw
-    is_global_nav_ = True
+    # if is_global_nav:
+    is_global_nav_ = is_global_nav
     dt_in = 0.1
     cmd = Twist()
     if not goalData[0]:
@@ -245,7 +228,9 @@ def make_twist_msg(accel, acc_omega, goalData, warn_w, yaw_meas):
             #latest_yaw = yaw_meas
             delete_pruning_points_from_file()
             rospy.set_param('nav_stat', True)
-            is_global_nav_ = False
+            if is_global_nav:
+                rospy.set_param('global_nav_stat', False)
+                is_global_nav_ = False
             
         else:
             cmd.linear.x = cmd_vel_
@@ -342,7 +327,7 @@ def mpc_node():
     rospy.init_node('mpc_warthog', anonymous=True)
     rate = rospy.Rate(10) # 10hz
 
-    is_fresh_start, is_global_nav, load_backup = parse_args(rospy.myargv(argv=sys.argv))
+    is_fresh_start, is_global_nav, load_backup = utils.parse_args(rospy.myargv(argv=sys.argv))
 
     # is_fresh_start = args[1]
     # is_global_nav = int(args[2]) #true for starting in the barn, false to start in the middle of the row
@@ -363,6 +348,7 @@ def mpc_node():
 
     #get the pruning points
     if is_global_nav:
+        rospy.set_param('global_nav_stat', True)
         ppx, ppy = utils.get_pruning_points(is_fresh_start) #if is a fresh_start use the original_file, otherwise use the cropped one
     else:
         ppx = []
@@ -560,7 +546,7 @@ def mpc_node():
             print('Yaw:', robot_state.yaw)
             print('Goal yaw', cyaw[target_ind_move])
             print(warn_w)
-            cmd_command, global_nav_finished = make_twist_msg(ai, wi, goalData, warn_w, robot_state.yaw)
+            cmd_command, global_nav_finished = make_twist_msg(ai, wi, goalData, warn_w, robot_state.yaw, is_global_nav)
             is_global_nav = global_nav_finished #global nav finished is true is still in global nav, false if it finished
             # if nav_glob_finished:
             #     print("Global navigation finished - Exiting ...")

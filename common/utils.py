@@ -16,7 +16,27 @@ from sklearn.neighbors import NearestNeighbors
 import shutil
 
 import pdb
+import argparse
 #import pandas as pd
+
+
+def parse_args(args):
+    args = args[1:]
+    parser = argparse.ArgumentParser(description='Changing global to local planning')
+    parser.add_argument('fresh_start', type=str, help='Mode of operation')
+    parser.add_argument('--barn_field', type=lambda x: (str(x).lower() == 'true'), default=False, help='Enable or disable feature')
+    parser.add_argument('--load_backup_plan', type=lambda x: (str(x).lower() == 'true'), default=False, help='Enable or disable feature')
+    parsed_args = parser.parse_args(args)
+    is_fresh_start = parsed_args.fresh_start
+    is_global_nav = parsed_args.barn_field
+    load_backup = parsed_args.load_backup_plan
+    # print(is_fresh_start)
+    # print(args)
+    if len(args)!=5:
+        print("ERROR:Provide fresh_start, global_local and load_backup arguments ")
+        sys.exit(1)    
+    return is_fresh_start, is_global_nav, load_backup
+
 
 def get_course_from_file_legacy(dl=1.0):
     path = os.path.join(current_dir, '../gps_coordinates/') 
