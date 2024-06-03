@@ -8,6 +8,7 @@ import scipy.io as sio
 
 import common.global_defs_corn_ins as defs
 import common.utils as utils
+from common.utils import cubic_spline_planner
 import common.robot_motion_skid_steer as bot_model
 from common.path import A_star_path
 #import common.utils_viz as visual_tools
@@ -23,8 +24,10 @@ from geometry_msgs.msg import PoseStamped, Pose, Twist, Point
 from visualization_msgs.msg import Marker, MarkerArray
 import tf
 
-current_dir = os.path.dirname(__file__)
+import pdb
 
+
+current_dir = os.path.dirname(__file__)
 
 first_seen = False
 isInitState = True
@@ -46,6 +49,16 @@ single_marker_pub = rospy.Publisher("/local_goal_point", Marker, queue_size=10)
 local_goal_pub = rospy.Publisher("/local_end_point", Marker, queue_size=10)
 
 Q_mpc = np.diag([1.0, 1.0, 1.0, 1.0, 0.01])
+
+def create_path(x, y):
+    my_path = Path()
+    my_path.header.frame_id = 'odom'
+    for x,y in zip(x, y):
+        pose = PoseStamped()
+        pose.pose.position.x = x
+        pose.pose.position.y = y        
+        my_path.poses.append(pose)
+    return my_path
 
 def pubish_single_marker(pose_x, pose_y, flag_goal=False):
     marker = Marker()
@@ -324,6 +337,8 @@ def mpc_node():
     #target_ind = 0
     target_ind_move = 0
 
+    my_path = Path()
+
     rospy.init_node('mpc_warthog', anonymous=True)
     rate = rospy.Rate(10) # 10hz
 
@@ -351,10 +366,13 @@ def mpc_node():
         rospy.set_param('global_nav_stat', True)
         ppx, ppy = utils.get_pruning_points(is_fresh_start) #if is a fresh_start use the original_file, otherwise use the cropped one
     else:
+        rospy.set_param('global_nav_stat', False)
         ppx = []
         ppy = []              
 
     global_cx, global_cy, global_cyaw, global_ck = utils.get_course_from_file(is_global_nav, load_backup, dl)
+    # print("global_cyaw", global_cyaw)
+    # pdb.set_trace()
     # global_cx, global_cy, global_cyaw, global_ck = utils.get_course_from_file_legacy(dl)
     if len(global_cx)> 0:
         #global_sp = utils.calc_speed_profile(global_cx, global_cy, global_cyaw, defs.TARGET_SPEED)
@@ -364,13 +382,8 @@ def mpc_node():
         #sio.savemat('/home/fyandun/Documentos/simulation/catkin_ws/src/mpc_controller_warthog/cyaw_global.mat', {'global_cyaw':global_cyaw})
         global_cyaw = utils.smooth_yaw(global_cyaw)  
         if is_global_nav:
-            my_path = Path()
-            my_path.header.frame_id = 'odom'
-            for x,y in zip(global_cx, global_cy):
-                pose = PoseStamped()
-                pose.pose.position.x = x
-                pose.pose.position.y = y        
-                my_path.poses.append(pose)                    
+            my_path = create_path(global_cx, global_cy)
+                  
     else:
         global_sp = []
         global_cyaw = []        
@@ -408,22 +421,31 @@ def mpc_node():
             print("NEW INTER-ROW PATH RECEIVED!!!")
             rospy.set_param('nav_stat', False)
             global_path.read_path()            
-            global_cx, global_cy, global_cyaw = global_path.x_path, global_path.y_path, global_path.yaw_path
-            global_ck = utils.calc_curvature(global_path.x_path, global_path.y_path)
-            global_cyaw = utils.smooth_yaw(global_cyaw)
-            print("global_yaw", global_cyaw)
-            utils.save_path_backup(global_path.x_path, global_path.y_path, global_cyaw)            
+            global_cx_, global_cy_, global_cyaw_ = global_path.x_path, global_path.y_path, global_path.yaw_path
+            global_cx, global_cy, global_cyaw,  global_ck, _ = cubic_spline_planner.calc_spline_course(global_cx_, global_cy_, 0.1)
+            # global_ck, _ = utils.calc_curvature(global_cx, global_cy)
+            my_path = create_path(global_cx, global_cy)
+            # print("global_yaw", global_cyaw)
+            # print("global_ck", global_cyaw)
+            # print(" ")
+            # print("global_ck_debug", global_cyaw_)
+            # global_cyaw = utils.smooth_yaw(global_cyaw)
+            # print("global_yaw", global_cyaw_)
+            # pdb.set_trace()
+            # utils.save_path_backup(global_path.x_path, global_path.y_path, global_cyaw)            
+            utils.save_path_backup(global_cx, global_cy, global_cyaw)            
+            
             ppx = [global_cx[-1], global_cx[-1]]
             ppy = [global_cy[-1], global_cy[-1]]
             global_sp = utils.calc_speed_profile_1(global_cx, global_cy, global_cyaw, global_ck)
             init_route = True
         if is_global_nav:
             publish_marker(ppx, ppy)
-            pathPub.publish(my_path)
+            
         else:
             if len(ppx)>0:
                     pubish_single_marker(ppx[0], ppy[0], True)
-
+        pathPub.publish(my_path)
 
         if len(global_cx)>0:
             if init_route:

@@ -3,7 +3,10 @@ import time
 import numpy as np
 from visualization_msgs.msg import MarkerArray, Marker
 import geometry_msgs.msg
-from geometry_msgs.msg import Point
+from geometry_msgs.msg import Point, PoseStamped
+from nav_msgs.msg import Odometry, Path
+
+	
 
 class markerVisualization():
 
@@ -246,3 +249,4 @@ class markerVisualization():
 
 		markers_array_msg.markers = markers_array
 		self.pub_marker_pts_curv.publish(markers_array_msg)
+	

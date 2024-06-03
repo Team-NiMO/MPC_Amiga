@@ -25,7 +25,7 @@ class Spline:
         
         # calc coefficient c
         self.a = [iy for iy in y]
-
+        
         # calc coefficient c
         A = self.__calc_A(h)
         B = self.__calc_B(h)
@@ -118,6 +118,7 @@ class Spline:
         """
         calc matrix B for spline coefficient c
         """
+        # pdb.set_trace()
         B = np.zeros(self.nx)
         for i in range(self.nx - 2):
             B[i + 1] = 3.0 * (self.a[i + 2] - self.a[i + 1]) / \

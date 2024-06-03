@@ -176,10 +176,19 @@ def calc_curvature(x, y):
     # Second derivatives
     ddx = np.gradient(dx, t)
     ddy = np.gradient(dy, t)
-    
+
+    ds = np.sqrt(dx**2 + dy**2)
+
     # Curvature calculation
     curvatures = np.abs(dx * ddy - dy * ddx) / (dx**2 + dy**2)**1.5
-    return curvatures.tolist()
+
+    d_theta = curvatures * ds
+    orientations = np.cumsum(d_theta)
+
+    initial_orientation = np.arctan2(dy[0], dx[0])
+    orientations = initial_orientation + orientations
+
+    return curvatures.tolist(), orientations.tolist()
 
 def get_online_course(ax, ay, dl=0.1):
     cx, cy, cyaw, ck, s = cubic_spline_planner.calc_spline_course(
