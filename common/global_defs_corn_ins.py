@@ -8,10 +8,10 @@ NU = 2  # [accel, delta]
 T = 10  # horizon length ------ was 5
 
 # mpc parameters
-R = np.diag([0.01, 0.01])  # input cost matrix
+R = np.diag([1, 0.01])  # input cost matrix
 #Rd = np.diag([0.01, 1.0])  # input differenc cost matrix -> bicycle
 Rd = np.diag([0.01, 0.01])  # input difference cost matrix -> skid_steer
-Q = np.diag([1.0, 1.0, 1.0, 1.0, 0.01])  # state cost matrix ---  Q = np.diag([1.0, 1.0, 0.5, 1.0, 0.01]), Q = np.diag([1.0, 1.0, 1.0, 1.0, 0.01])
+Q = np.diag([1.0, 1.0, 1.0, 1.0, 0.1])  # state cost matrix ---  Q = np.diag([1.0, 1.0, 0.5, 1.0, 0.01]), Q = np.diag([1.0, 1.0, 1.0, 1.0, 0.01])
 Qf = np.diag([1.0, 1.0, 0.5, 1.0])  # state final matrix  Qf = np.diag([1.0, 1.0, 0.5, 1.0])  
 #Qf = np.diag([1.0, 1.0, 0.5, 5.0])
 GOAL_DIS = 0.6  # goal distance, was 0.5 abhi

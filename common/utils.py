@@ -74,17 +74,10 @@ def get_course_from_file(is_global_nav, load_backup, dl=1.0):
             ax = points[:,0].tolist()
             ay = points[:,1].tolist()
             ayaw = points[:,3] #will assume it is in format ypr
-            if is_global_nav:
-                cx, cy, cyaw, ck, s = cubic_spline_planner.calc_spline_course(
-                    ax,ay,ds=dl)
-                # pdb.set_trace()
-                return cx, cy, cyaw, ck
-            else:
-                cx = ax
-                cy = ay
-                cyaw = ayaw
-                ck = calc_curvature(ax, ay)
-                return cx, cy, cyaw, ck
+            cx, cy, cyaw, ck, s = cubic_spline_planner.calc_spline_course(
+                ax,ay,ds=dl)
+            # pdb.set_trace()
+            return cx, cy, cyaw, ck
     else:
         print("FILE NOT FOUND, RETURNING EMPTY ARRAYS!!!")
         print("Trying to read filename: ", file_name)
