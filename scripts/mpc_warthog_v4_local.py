@@ -3,7 +3,7 @@ import rospy
 import numpy as np
 import acado
 import math
-
+import cvxpy
 import scipy.io as sio
 
 import common_local.global_defs_local as defs
@@ -145,9 +145,12 @@ def iterative_linear_mpc_control(xref, dref, oa, ow):
 
 # MPC using ACADO
 def linear_mpc_control(xref, xbar, x0, dref):
+    # print("in linear mpc control")
     # see acado.c for parameter details
+    # print(np.shape(xref))
     _x0=np.zeros((1, defs.NX))  
     X=np.zeros((defs.T+1, defs.NX))
+    # print(np.shape(X))
     U=np.zeros((defs.T, defs.NU))    
     Y=np.zeros((defs.T, defs.NY))    
     yN=np.zeros((1, defs.NYN))    
@@ -159,6 +162,11 @@ def linear_mpc_control(xref, xbar, x0, dref):
     yN[0,:]=Y[-1,:defs.NYN]         # reference terminal state
     #print(Y.shape)
     # print(X.shape)
+    # constraints = acado.Constraints()
+    # steering_velocity_index = 1  # Update this index based on your setup
+    # for t in range(defs.T):
+    #     constraints.addUpperBound(U[t, steering_velocity_index], 0.3)
+
     X, U = acado.mpc(0, 1, _x0, X,U,Y,yN, np.transpose(np.tile(defs.Q,defs.T)), defs.Qf, 0)    
     ox_mpc = utils.get_nparray_from_matrix(X[:,0])
     oy_mpc = utils.get_nparray_from_matrix(X[:,1])
@@ -167,7 +175,51 @@ def linear_mpc_control(xref, xbar, x0, dref):
     oa_mpc = utils.get_nparray_from_matrix(U[:,0])
     ow_mpc = utils.get_nparray_from_matrix(U[:,1])
     return oa_mpc, ow_mpc, ox_mpc, oy_mpc, oyaw_mpc, ov_mpc    
-    
+# def linear_mpc_control(xref, xbar, x0, dref):
+#     _x0 = np.zeros((1, defs.NX))
+#     X = np.zeros((defs.T + 1, defs.NX))
+#     U = np.zeros((defs.T, defs.NU))
+#     Y = np.zeros((defs.T, defs.NY))
+#     yN = np.zeros((1, defs.NYN))
+#     print(np.shape(xbar))
+#     # Set initial state
+#     _x0[0, :] = np.transpose(x0)
+
+#     # Set reference and predicted states
+#     for t in range(defs.T):
+#         Y[t, :] = np.transpose(xref[:, t])
+#         X[t, :] = np.transpose(xbar[t, :])  # Transpose xbar for correct dimensions
+#         # X[t, :] = xbar[t, :] 
+#     X[-1, :] = X[-2, :]
+#     yN[0, :] = Y[-1, :defs.NYN]
+
+#     # Debug prints for dimensions
+#     print(f"xref shape: {xref.shape}")
+#     print(f"x shape: {X.shape}")
+#     print(f"defs.Qf shape: {defs.Qf.shape}")
+
+#     # Ensure the dimensions are compatible for quad_form
+#     try:
+#         cost = cvxpy.quad_form(xref[:, -1] - X[-1, :], defs.Qf)
+#     except Exception as e:
+#         print(f"Error in quad_form: {e}")
+#         return None
+
+#     # Create and solve the optimization problem
+#     constraints = [U[:, 1] <= 0.3]  # Add steering velocity constraint
+#     prob = cvxpy.Problem(cvxpy.Minimize(cost), constraints)
+#     prob.solve()
+
+#     # Extract optimized values
+#     ox_mpc = utils.get_nparray_from_matrix(X[0,:])
+#     oy_mpc = utils.get_nparray_from_matrix(X[1,:])
+#     ov_mpc = utils.get_nparray_from_matrix(X[2,:])
+#     oyaw_mpc = utils.get_nparray_from_matrix(X[3,:])
+#     oa_mpc = utils.get_nparray_from_matrix(U[0,:])
+#     ow_mpc = utils.get_nparray_from_matrix(U[1,:])
+
+#     return oa_mpc, ow_mpc, ox_mpc, oy_mpc, oyaw_mpc, ov_mpc
+
 def callbackFilteredOdom(odom_msg):
     #global last_time
     global yaw_prev_
@@ -201,6 +253,7 @@ def callbackFilteredOdom(odom_msg):
     #print(yaw_prev_*180/math.pi)
     # robot_state.set_meas(x_meas, y_meas, yaw_inRange, v_meas, w_meas)
     robot_state.set_meas(0.0, 0.0, yaw_inRange, v_meas, w_meas)
+    # robot_state.set_meas(0.0, 0.0, 0.0, v_meas, w_meas)
     yaw_prev_ = yaw_inRange
 
     # if (last_time.to_nsec()==0):
@@ -216,12 +269,15 @@ def callbackFilteredOdom(odom_msg):
 
 #here I need to create the msg to send - chech in case of a carlike
 def make_twist_msg(accel, acc_omega, goalData, warn_w, yaw_meas):
+    print("ow value", acc_omega)
     global vel_up
     global vel_down
     global w_up
     global latest_yaw
-    dt_in = 0.025
+    dt_in = 0.05
     cmd = Twist()
+    print("target v", defs.TARGET_SPEED)
+    print("target v", defs.OFFSET_TO_GOAL)
     if not goalData[0]:
         cmd_vel_ = vel_up + dt_in*defs.TARGET_SPEED/defs.T_RAMP_UP
         #cmd_vel_ = vel_up + dt_in*accel
@@ -229,7 +285,7 @@ def make_twist_msg(accel, acc_omega, goalData, warn_w, yaw_meas):
 
         cmd_w_ = w_up + dt_in*acc_omega
         w_up = cmd_w_ 
-
+        w_up = acc_omega
         if cmd_vel_ < defs.MAX_TARGET_SPEED and cmd_vel_ >defs.MIN_TARGET_SPEED: #if cmd_vel_ < defs.TARGET_SPEED:
             cmd.linear.x = cmd_vel_
         elif cmd_vel_ > defs.MAX_TARGET_SPEED:    
@@ -429,8 +485,9 @@ def mpc_node():
         last_time = rospy.Time.now().to_sec()
         x_ref_all = np.zeros((5, 1), dtype = float) #debugging
         init_accel = 0.1
-        dl = 0.1
+        dl = 0.05
         global_cx, global_cy, global_cyaw, global_ck = utils.get_course_from_file_global(points, dl)
+        # print("global cx", global_cx)
         print("global cx", len(global_cx))
         ppx, ppy = utils.get_pruning_points_global(points[-1:], is_fresh_start)
         # print("points", points[-1:])
@@ -507,6 +564,7 @@ def mpc_node():
                 goal = [cx[-1], cy[-1]]
                 # print(goal)
                 offset_stop = 0
+            print(defs.OFFSET_TO_GOAL)
             print(goal)
 
             target_ind, _ = utils.calc_nearest_index(robot_state, cx, cy, cyaw, 0)
@@ -601,6 +659,10 @@ def mpc_node():
             print('Yaw:', robot_state.yaw)
             print('Goal yaw', cyaw[target_ind_move])
             print(warn_w)
+            # if wi >= 0.3:
+            #     wi = 0.3
+            # if wi <= -0.3:
+            #     wi = -0.3
             cmd_command = make_twist_msg(ai, wi, goalData, warn_w, robot_state.yaw)
 
             if nav_glob_finished:
