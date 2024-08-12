@@ -9,8 +9,8 @@ import scipy.io as sio
 import common.global_defs as defs
 import common.utils as utils
 import common.robot_motion_skid_steer as bot_model
-#import common.utils_viz as visual_tools
-
+from common.path import A_star_path
+from common.utils_viz import markerVisualization
 import sys
 import os
 import time
@@ -25,6 +25,7 @@ isInitState = True
 
 #initial robot state
 robot_state = bot_model.kinematics(0, 0, 0, 0)
+global_path = A_star_path()
 last_time = rospy.Time()
 dt = 0.1
 yaw_prev_ = 0
@@ -34,90 +35,9 @@ w_up = 0
 count_init = 0
 can_delete_file = True
 nav_glob_finished = False
-
-local_path_pub = rospy.Publisher("/pruning_points", MarkerArray, queue_size=10)
-single_marker_pub = rospy.Publisher("/local_goal_point", Marker, queue_size=10)
+viz_utils = markerVisualization()
 
 Q_mpc = np.diag([1.0, 1.0, 1.0, 1.0, 0.01])
-
-def pubish_single_marker(pose_x, pose_y):
-    marker = Marker()
-    marker.header.frame_id = 'odom'
-    marker.type = marker.SPHERE
-    marker.action = marker.ADD
-
-    marker.pose.position.x = pose_x
-    marker.pose.position.y = pose_y
-    marker.pose.position.z = 0.0
-
-    marker.pose.orientation.x = 0.0
-    marker.pose.orientation.y = 0.0
-    marker.pose.orientation.z = 0.0
-    marker.pose.orientation.w = 1.0
-
-    marker.scale.x = 0.5
-    marker.scale.y = 0.5
-    marker.scale.z = 0.5
-
-    marker.color.r = 0.
-    marker.color.g = 1.
-    marker.color.b = 1.
-    marker.color.a = 1.
-
-    single_marker_pub.publish(marker)
-
-def publish_marker(marker_pose_x, marker_pose_y, scale=[0.5,0.5,0.05], color=[1.,0.,0.]):
-    markers_array_msg = MarkerArray()
-    markers_array = []
-    count=0
-    #print(marker_pose_x)
-    for x,y in zip(marker_pose_x, marker_pose_y):
-        #print(x)
-        mark = Marker()
-        mark.header.stamp = rospy.Time.now()
-        mark.header.frame_id = "odom"
-        mark.type = mark.CYLINDER
-        mark.action = mark.ADD
-        mark.ns = "waypoints"
-        mark.id = count
-        mark.pose.position.x = x
-        mark.pose.position.y = y
-        mark.pose.position.z = 0
-        mark.pose.orientation.x = 0
-        mark.pose.orientation.y = 0
-        mark.pose.orientation.z = 0
-        mark.pose.orientation.w = 1
-
-        #mark.action = mark.ADD
-        
-        mark.scale.x = scale[0]
-        mark.scale.y = scale[1]
-        mark.scale.z = scale[2]
-        mark.color.a = 1
-        mark.color.r = color[0]
-        mark.color.g = color[1]
-        mark.color.b = color[2]
-        mark.lifetime = rospy.Duration(0)
-
-        markers_array.append(mark)
-        count+=1
-
-    markers_array_msg.markers = markers_array
-    local_path_pub.publish(markers_array_msg)
-
-# def publish_local_path(path, color=[1.,0.,0.]):
-#     my_path = Path()
-#     my_path.header.frame_id = 'odom'
-#     # my_path.color.r = color[0]
-#     # my_path.color.g = color[1]
-#     # my_path.color.b = color[2]
-#     for column in path.T:
-#         pose = PoseStamped()
-#         pose.pose.position.x = column[0]
-#         pose.pose.position.y = column[1]
-#         my_path.poses.append(pose)
-#     local_path_pub.publish(my_path)
-
 
 def iterative_linear_mpc_control(xref, dref, oa, ow):
     """
@@ -314,7 +234,6 @@ def mpc_node():
     odomSubs = rospy.Subscriber("/odometry/filtered", Odometry, callbackFilteredOdom)
     # odomSubs = rospy.Subscriber("/odometry/filtered", Odometry, callbackFilteredOdom)
     controlPub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
-    pathPub = rospy.Publisher("/aPath", Path, queue_size=10)
 
     last_time = rospy.Time.now().to_sec()
 
@@ -351,20 +270,15 @@ def mpc_node():
     cx, cy, cyaw, ck, sp = None, None, None, None, None
 
     #this is used to visualize the path on rviz
-    my_path = Path()
-    my_path.header.frame_id = 'odom'
-    for x,y in zip(global_cx, global_cy):
-        pose = PoseStamped()
-        pose.pose.position.x = x
-        pose.pose.position.y = y        
-        my_path.poses.append(pose)
+    current_path = viz_utils.create_path(global_cx, global_cy)  
+    # my_path = Path()
+    # my_path.header.frame_id = 'odom'
+    # for x,y in zip(global_cx, global_cy):
+    #     pose = PoseStamped()
+    #     pose.pose.position.x = x
+    #     pose.pose.position.y = y        
+    #     my_path.poses.append(pose)
     
-
-    # initial yaw compensation
-    #if robot_state.yaw - cyaw[0] >= math.pi:
-    #    robot_state.yaw -= math.pi * 2.0
-    #elif robot_state.yaw - cyaw[0] <= -math.pi:
-    #    robot_state.yaw += math.pi * 2.0
     robot_state.get_current_meas_state()
     #print(is_fresh_start)
     if is_fresh_start == "1":
@@ -388,8 +302,8 @@ def mpc_node():
     #delete_pruning_points_from_file()
     while not rospy.is_shutdown():
         prune_done = rospy.get_param("/pruning_status")
-        pathPub.publish(my_path)
-        publish_marker(ppx, ppy)
+        viz_utils.local_goal_pub.publish(current_path)
+        viz_utils.publish_marker(ppx, ppy)
         #print(len(global_cx))
         #current_time = rospy.Time.now().to_sec()
         #if current_time - last_time > 10:
@@ -461,7 +375,7 @@ def mpc_node():
             #    robot_state, cx, cy, cyaw, ck, sp, dl, dt, target_ind_move)
             xref, target_ind_move, dref = utils.calc_ref_trajectory_v1(
                 robot_state, cx, cy, cyaw, ck, sp, init_accel, dl, dt, target_ind_move)
-            pubish_single_marker(cx[target_ind_move], cy[target_ind_move])
+            viz_utils.pubish_single_marker(cx[target_ind_move], cy[target_ind_move])
             #x_ref_all = np.append(x_ref_all, xref,axis = 1)
             #sio.savemat('/home/agvbotics/ros/nav_ws/src/mpc_controller_warthog/x_ref_all.mat', {'x_ref_all':x_ref_all})
             #print(target_ind_move)

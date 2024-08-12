@@ -1,0 +1,10 @@
+# goal
+float32[] plan
+
+---
+# result
+bool success
+
+---
+# feedback
+float32 current_waypoint
