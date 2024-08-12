@@ -220,19 +220,21 @@ def make_twist_msg(accel, acc_omega, goalData, warn_w, yaw_meas):
     dt_in = 0.1
     cmd = Twist()
     if not goalData[0]:
-        cmd_vel_ = vel_up + dt_in*defs.TARGET_SPEED/defs.T_RAMP_UP
-        #cmd_vel_ = vel_up + dt_in*accel
+        print("accel", accel)
+        # cmd_vel_ = vel_up + dt_in*defs.TARGET_SPEED/defs.T_RAMP_UP
+        cmd_vel_ = vel_up + dt_in*accel
         vel_up = cmd_vel_
 
         cmd_w_ = w_up + dt_in*acc_omega
         w_up = cmd_w_ 
 
-        if cmd_vel_ < defs.MAX_TARGET_SPEED and cmd_vel_ >defs.MIN_TARGET_SPEED: #if cmd_vel_ < defs.TARGET_SPEED:
-            cmd.linear.x = cmd_vel_
-        elif cmd_vel_ > defs.MAX_TARGET_SPEED:    
-            cmd.linear.x = defs.MAX_TARGET_SPEED #cmd.linear.x = defs.TARGET_SPEED
-        elif cmd_vel_ < defs.MIN_TARGET_SPEED:
-            cmd.linear.x = defs.MIN_TARGET_SPEED
+        # if cmd_vel_ < defs.MAX_TARGET_SPEED and cmd_vel_ >defs.MIN_TARGET_SPEED: #if cmd_vel_ < defs.TARGET_SPEED:
+        #     cmd.linear.x = cmd_vel_
+        # elif cmd_vel_ > defs.MAX_TARGET_SPEED:    
+        #     cmd.linear.x = defs.MAX_TARGET_SPEED #cmd.linear.x = defs.TARGET_SPEED
+        # elif cmd_vel_ < defs.MIN_TARGET_SPEED:
+        #     cmd.linear.x = defs.MIN_TARGET_SPEED
+        cmd.linear.x = cmd_vel_
         if not warn_w:
             cmd.angular.z =  w_up# + acc_omega*dt_in
         else:
@@ -261,7 +263,7 @@ def make_twist_msg(accel, acc_omega, goalData, warn_w, yaw_meas):
             cmd.angular.z = 0.3*w_up
 
         #cmd.angular.z = w_up
-    #print(cmd.linear.x)
+    print("output_vel", cmd.linear.x)
     cmd.linear.y = 0
     cmd.linear.z = 0
     cmd.angular.x = 0
@@ -337,7 +339,13 @@ def mpc_node():
     # sio.savemat('/home/fyandun/Documents/catkin_ws/iowa_navigation/src/MPC_Amiga/debug_files/cy_global.mat', {'global_cy':global_cy})
     # sio.savemat('/home/fyandun/Documents/catkin_ws/iowa_navigation/src/MPC_Amiga/debug_files/cyaw_global.mat', {'global_cyaw':global_cyaw})
     # sio.savemat('/home/fyandun/Documents/catkin_ws/iowa_navigation/src/MPC_Amiga/debug_files/sp_global.mat', {'global_sp':global_sp})
-    # print(global_sp)
+    global_sp = np.array(global_sp)
+    global_cyaw = np.array(global_cyaw)
+    global_sp[98:] = -1.0
+    global_cyaw[98:] = 1.7368995515204855
+    global_sp.tolist()
+    global_cyaw.tolist()
+    print(global_cyaw)
     rate = rospy.Rate(10) # 10hz
     
     cx, cy, cyaw, ck, sp = None, None, None, None, None
@@ -508,6 +516,7 @@ def mpc_node():
                     warn_w = False
             print('Yaw:', robot_state.yaw)
             print('Goal yaw', cyaw[target_ind_move])
+            print('Goal sp', sp[target_ind_move])
             print(warn_w)
             cmd_command = make_twist_msg(ai, wi, goalData, warn_w, robot_state.yaw)
 

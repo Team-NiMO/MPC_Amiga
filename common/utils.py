@@ -271,6 +271,34 @@ def calc_speed_profile_1(cx, cy, cyaw, ck):
 
     return speed_profile    
 
+def calc_speed_profile_2(cx, cy, cyaw, target_speed):
+
+    speed_profile = [target_speed] * len(cx)
+    direction = 1.0  # forward
+
+    # Set stop point
+    for i in range(len(cx) - 1):
+        dx = cx[i + 1] - cx[i]
+        dy = cy[i + 1] - cy[i]
+
+        move_direction = math.atan2(dy, dx)
+
+        if dx != 0.0 and dy != 0.0:
+            dangle = abs(pi_2_pi(move_direction - cyaw[i]))
+            if dangle >= math.pi / 4.0:
+                direction = -direction
+            else:
+                direction = direction
+
+        if direction != 1.0:
+            speed_profile[i] = - target_speed
+        else:
+            speed_profile[i] = target_speed
+
+    speed_profile[-1] = 0.0
+
+    return speed_profile 
+
 def mavg(array_in, window_size = 81): #remember to put an odd number here!
     length = len(array_in)
     count = window_size
