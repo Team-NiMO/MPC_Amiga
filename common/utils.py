@@ -137,6 +137,27 @@ def get_forward_course(dl=1.0):
 
     return cx, cy, cyaw, ck
 
+def delete_pruning_points_from_file(can_delete_file_):    
+    if can_delete_file_:
+        try:
+            path = os.path.join(current_dir, '../gps_coordinates/') 
+            filename = "pruning_points_real"
+            full_path = path + filename + "_copied.txt"
+            a_file = open(full_path, "r")
+            lines = a_file.readlines()
+            a_file.close()
+            #print(lines)
+            del lines[0]
+
+            new_file = open(full_path, "w+")
+            for line in lines:
+                new_file.write(line)
+            new_file.close()
+        except:
+            nav_glob_finished = True
+    can_delete_file = False
+    return can_delete_file, nav_glob_finished
+
 
 def get_switch_back_course(dl=1.0):
     ax = [0.0, 30.0, 6.0, 20.0, 35.0]

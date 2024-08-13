@@ -315,7 +315,7 @@ class markerVisualization:
 		markers_array_msg.markers = markers_array
 		self.local_path_pub.publish(markers_array_msg)			
 
-	def create_path(x, y):
+	def create_path(self, x, y):
 		my_path = Path()
 		my_path.header.frame_id = 'odom'
 		for x,y in zip(x, y):

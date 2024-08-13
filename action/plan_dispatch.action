@@ -1,10 +1,13 @@
 # goal
-float32[] plan
-
+float32[] global_cx
+float32[] global_cy
+float32[] global_cyaw
+float32[] global_ck
+string description
 ---
 # result
 bool success
 
 ---
 # feedback
-float32 current_waypoint
+float32[] current_waypoint
