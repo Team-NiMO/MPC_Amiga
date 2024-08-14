@@ -5,7 +5,7 @@ import rospy
 
 import common.utils as utils
 
-from mpc_amiga.msg import plan_dispatchAction, plan_dispatchGoal, plan_dispatchFeedback
+from mpc_amiga.msg import plan_dispatchAction, plan_dispatchGoal
 
 def feedback_cb(feedback):
     print(f"Current waypoint: {feedback.current_waypoint}")

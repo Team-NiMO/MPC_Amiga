@@ -248,7 +248,7 @@ def make_twist_msg(accel, acc_omega, goalData, warn_w, yaw_meas):
         #cmd_vel_ = vel_down - dt_in*defs.TARGET_SPEED/defs.T_RAMP_DOWN
         cmd_vel_ = vel_down - dt_in*vel_down*vel_down/(5*dToGoal)
         print(dToGoal)
-        if dToGoal < defs.DIST_TO_GOAL_STOP: #was .1
+        if dToGoal < 0.01:#defs.DIST_TO_GOAL_STOP: #was .1
             cmd.linear.x = 0
             cmd.angular.z = 0
             print("Goal Reached")
@@ -516,7 +516,6 @@ def mpc_node():
                     warn_w = False
             print('Yaw:', robot_state.yaw)
             print('Goal yaw', cyaw[target_ind_move])
-            print('Goal sp', sp[target_ind_move])
             print(warn_w)
             cmd_command = make_twist_msg(ai, wi, goalData, warn_w, robot_state.yaw)
 

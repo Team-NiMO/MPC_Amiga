@@ -392,109 +392,13 @@ class mpc_controller():
                     print('Yaw:', self.robot_state.yaw)
                     print('Goal yaw', cyaw[target_ind_move])
                     print(warn_w)
-                    cmd_command, global_nav_finished = make_twist_msg(ai, wi, goalData, warn_w, robot_state.yaw, is_global_nav)
+                    cmd_command, global_nav_finished = self.make_twist_msg(ai, wi, goalData, warn_w, self.robot_state.yaw, is_global_nav)
                     is_global_nav = global_nav_finished #global nav finished is true is still in global nav, false if it finished
                     # if nav_glob_finished:
                     #     print("Global navigation finished - Exiting ...")
                     #     break
-                    controlPub.publish(cmd_command)
+                    self.controlPub.publish(cmd_command)
 
-
-            prune_done = rospy.get_param("pruning_status")    
-            self.viz_utils.pathPub.publish(current_path)
-            self.viz_utils.publish_marker(ppx, ppy)
-            if not prune_done or init_route:
-                self.can_delete_file = True
-                self.robot_state.get_current_meas_state()
-                print("Target_ind", target_ind)
-
-                if index_pruning < len(ppx):
-                    if not init_route:
-                        target_ind = utils.calc_nearest_index_pruning(self.robot_state.x, self.robot_state.y, global_cx, global_cy, 0)
-
-                    cx, cy, cyaw, ck, sp = utils.crop_global_plan(global_cx, global_cy, global_cyaw, global_ck, global_sp, ppx[index_pruning], ppy[index_pruning], target_ind)
-                    goal = [cx[-defs.OFFSET_TO_GOAL], cy[-defs.OFFSET_TO_GOAL]]
-                    offset_stop = defs.OFFSET_TO_GOAL
-                else:
-                    target_ind_ = utils.calc_nearest_index_pruning(self.robot_state.x, self.robot_state.y, global_cx, global_cy, 0)
-                    cx = global_cx[target_ind_:]
-                    cy = global_cy[target_ind_:]
-                    cyaw = global_cyaw[target_ind_:]
-                    ck = global_ck[target_ind_:]
-                    sp = global_sp[target_ind_:]
-                    goal = [cx[-1], cy[-1]]
-                    #print(goal)
-                    offset_stop = 0
-                target_ind, _ = utils.calc_nearest_index(self.robot_state, cx, cy, cyaw, 0)                
-
-                # initial yaw compensation
-                if self.robot_state.yaw - cyaw[target_ind] >= math.pi:
-                    self.robot_state.yaw -= math.pi * 2.0
-                elif self.robot_state.yaw - cyaw[target_ind] <= -math.pi:
-                    self.robot_state.yaw += math.pi * 2.0                        
-                
-                prune_done_ = prune_done
-
-            if prune_done:
-                diff_prune = prune_done_ - prune_done
-                if diff_prune != 0 or init_route:
-                    current_time_ = rospy.Time.now().to_sec()
-                    rospy.set_param('nav_stat', False)
-                    index_pruning+=1
-                    target_ind_move = target_ind
-                    if not init_route:
-                        flag_start_stragiht = True
-                    init_route = 0                
-
-                prune_done_ = prune_done
-                self.robot_state.get_current_meas_state()
-                xref, target_ind_move, dref = utils.calc_ref_trajectory_v1(
-                    self.robot_state, cx, cy, cyaw, ck, sp, init_accel, dl, self.dt, target_ind_move)
-                current_local_waypoint = [cx[target_ind_move], cy[target_ind_move]]
-                self.viz_utils.pubish_single_marker(current_local_waypoint[0], current_local_waypoint[1])
-
-
-                if self.robot_state.yaw - cyaw[target_ind_move] >= math.pi:
-                    self.robot_state.yaw -= math.pi * 2.0
-                elif self.robot_state.yaw - cyaw[target_ind_move] <= -math.pi:
-                    self.robot_state.yaw += math.pi * 2.0          
-
-                oa, ow, ox, oy, oyaw, ov = self.iterative_linear_mpc_control(
-                    xref, dref, oa, ow)                
-
-                if ow is not None:
-                    wi, ai = ow[0], oa[0]              
-                # warm-up solver
-                if True: #target_ind < 10:
-                    if abs(self.robot_state.v) < 0.05:
-                        if sp[target_ind_move]<0:
-                            ai = -0.1
-                        else:
-                            #print(robot_state.v)
-                            ai = init_accel
-                            wi = 0.01                   
-                init_accel = oa[0]
-
-                goalData = utils.check_goal(self.robot_state.get_current_pos_meas(), goal, target_ind_move, len(cx)-offset_stop)             
-                if is_fresh_start == "0" or flag_start_stragiht:    
-                    latest_time = rospy.Time.now().to_sec()
-                    if (abs(latest_time - current_time_) < 2.0):
-                        w_i = 0.0 
-                        warn_w = True
-                        ow = [0.0] * defs.T
-                        # print("Here")                     
-                    else:
-                        flag_start_stragiht = False
-                        warn_w = False    
-
-                print('Yaw:', self.robot_state.yaw)
-                print('Goal yaw', cyaw[target_ind_move])
-                print('Goal sp', sp[target_ind_move])
-                cmd_command = self.make_twist_msg(ai, wi, goalData, warn_w, self.robot_state.yaw)
-
-                if self.nav_glob_finished:
-                    print("Global navigation finished!!")
-                self.controlPub.publish(cmd_command)
             self.rate.sleep()
 
 

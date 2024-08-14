@@ -40,7 +40,11 @@ class mpc_controller_server():
         self.viz_utils = markerVisualization()      
 
         self.odomSubs = rospy.Subscriber("/odometry/filtered", Odometry, self.callbackFilteredOdom)
-        self.controlPub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)          
+        self.controlPub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)      
+        
+        self.turning = False
+
+        self.rate = rospy.Rate(10) # 10hz
 
     def callbackFilteredOdom(self, odom_msg):
         current_time = rospy.Time.now()
@@ -116,7 +120,7 @@ class mpc_controller_server():
                 cmd.angular.z = 0
                 print("Goal Reached")
                 self.vel_down = defs.MIN_TARGET_SPEED
-                self.can_delete_file, self.nav_glob_finished = utils.delete_pruning_points_from_file(self.can_delete_file, self.nav_glob_finished)
+                # self.can_delete_file, self.nav_glob_finished = utils.delete_pruning_points_from_file(self.can_delete_file, self.nav_glob_finished)
                 rospy.set_param('nav_stat', True)
                 
             else:
@@ -185,8 +189,7 @@ class mpc_controller_server():
         feedback = plan_dispatchFeedback()
         result = plan_dispatchResult()
         result.success = False
-
-        rate = rospy.Rate(10) # 10hz
+        
 
         init_route = 1
         target_ind_move = 0
@@ -199,16 +202,25 @@ class mpc_controller_server():
             print("ERROR:Provide fresh_start argument ")
             sys.exit(1)
         is_fresh_start = args[1] 
+        
 
         global_cx = list(goal.global_cx)
         global_cy = list(goal.global_cy)
         global_cyaw = list(goal.global_cyaw)
         global_ck = list(goal.global_ck)
-        global_sp = utils.calc_speed_profile_1(global_cx, global_cy, global_cyaw, global_ck)
+        if goal.description=="between_rows":
+            self.turning = False
+            global_sp = utils.calc_speed_profile_1(global_cx, global_cy, global_cyaw, global_ck)
+        else:
+            self.turning = True
+            global_sp = np.array(goal.global_sp)*defs.MAX_TARGET_SPEED
+            global_sp = global_sp.tolist()
         # global_sp = utils.calc_speed_profile_2(global_cx, global_cy, global_cyaw, defs.TARGET_SPEED)
 
         #get the stopping points
-        ppx, ppy = utils.get_pruning_points(is_fresh_start) #if is a fresh_start use the original_file, otherwise use the cropped one
+        # ppx, ppy = utils.get_pruning_points(is_fresh_start) #if is a fresh_start use the original_file, otherwise use the cropped one
+        ppx = [global_cx[-1]]
+        ppy = [global_cy[-1]]
 
         cx, cy, cyaw, ck, sp = None, None, None, None, None
 
@@ -233,6 +245,12 @@ class mpc_controller_server():
         index_pruning = 0
         
         while not rospy.is_shutdown():
+
+            if self.server.is_preempt_requested():
+                rospy.loginfo('Goal preempted')
+                self.server.set_preempted()
+                return   
+                     
             prune_done = rospy.get_param("/pruning_status")    
             self.viz_utils.pathPub.publish(current_path)
             self.viz_utils.publish_marker(ppx, ppy)
@@ -241,7 +259,8 @@ class mpc_controller_server():
                 self.robot_state.get_current_meas_state()
                 print("Target_ind", target_ind)
 
-                if index_pruning < len(ppx):
+                if index_pruning < len(ppx) and not self.turning:
+                    print("turning", self.turning)
                     if not init_route:
                         target_ind = utils.calc_nearest_index_pruning(self.robot_state.x, self.robot_state.y, global_cx, global_cy, 0)
 
@@ -332,7 +351,14 @@ class mpc_controller_server():
                     self.server.set_succeeded(result)
                     print("Global navigation finished!!")
                 self.controlPub.publish(cmd_command)
-            rate.sleep()
+            self.rate.sleep()
+
+        rospy.logwarn("Exiting without goal completion")
+        print("DEBUG",len(global_cx))
+        result = plan_dispatchResult()
+        result.success = False
+        self.server.set_aborted(result)
+
 
 
 if __name__ == '__main__':
