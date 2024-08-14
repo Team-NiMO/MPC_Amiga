@@ -56,7 +56,7 @@ if __name__ == "__main__":
 	
 	# f1 = 'data/2023-05-26/2023-05-26_flagstaff_oval_ekf.txt'
 	# '/home/amiga/navigation_ws/src/mpc_controller/gps_coordinates/rows_real.txt'
-	f2 = os.path.join(current_dir, '../gps_coordinates/barn_field_waypoints.txt') 
+	f2 = os.path.join(current_dir, '../gps_coordinates/rows_1.txt') 
 
 	mode = 'subsample'
 	subsample_rate = 20
