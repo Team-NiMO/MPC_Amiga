@@ -119,6 +119,7 @@ class mpc_controller_server():
                 cmd.linear.x = 0
                 cmd.angular.z = 0
                 print("Goal Reached")
+                self.nav_glob_finished = True
                 self.vel_down = defs.MIN_TARGET_SPEED
                 # self.can_delete_file, self.nav_glob_finished = utils.delete_pruning_points_from_file(self.can_delete_file, self.nav_glob_finished)
                 rospy.set_param('nav_stat', True)
@@ -189,7 +190,8 @@ class mpc_controller_server():
         feedback = plan_dispatchFeedback()
         result = plan_dispatchResult()
         result.success = False
-        
+
+        self.nav_glob_finished = False        
 
         init_route = 1
         target_ind_move = 0
@@ -251,7 +253,7 @@ class mpc_controller_server():
                 self.server.set_preempted()
                 return   
                      
-            prune_done = rospy.get_param("/pruning_status")    
+            # prune_done = rospy.get_param("/pruning_status")    
             self.viz_utils.pathPub.publish(current_path)
             self.viz_utils.publish_marker(ppx, ppy)
             if not prune_done or init_route:
@@ -350,14 +352,15 @@ class mpc_controller_server():
                     result.success = True
                     self.server.set_succeeded(result)
                     print("Global navigation finished!!")
+                    return
                 self.controlPub.publish(cmd_command)
             self.rate.sleep()
 
-        rospy.logwarn("Exiting without goal completion")
-        print("DEBUG",len(global_cx))
-        result = plan_dispatchResult()
-        result.success = False
-        self.server.set_aborted(result)
+        # rospy.logwarn("Exiting without goal completion")
+        # print("DEBUG",len(global_cx))
+        # result = plan_dispatchResult()
+        # result.success = False
+        # self.server.set_aborted(result)
 
 
 

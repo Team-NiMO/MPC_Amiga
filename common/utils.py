@@ -84,6 +84,44 @@ def get_course_from_file(is_global_nav, load_backup, dl=1.0):
 
     return cx, cy, cyaw, ck
 
+def get_course_from_file_iter(id, dl=1.0):
+    cx = []
+    cy = []
+    cyaw = []
+    ck = []
+
+
+    path = os.path.join(current_dir, '../gps_coordinates/') 
+    file_name = 'rows_'
+        # dl = 1.0
+
+        # dl = 0.5
+    full_path = path + file_name + str(id) + '.txt'
+    
+    if os.path.isfile(full_path):
+        points = np.loadtxt(full_path, delimiter=',', dtype=float) #test  
+        if len(points)>0:    
+            ax = points[:,0].tolist()
+            ay = points[:,1].tolist()
+            ayaw = points[:,3].tolist() #will assume it is in format ypr
+            if (id+1)%2==0:  
+                ax.reverse()
+                ay.reverse()
+                ayaw.reverse()            
+                ax = ax[3:]
+                ay = ay[3:]
+                ayaw = ayaw[3:]
+                
+            cx, cy, cyaw, ck, s = cubic_spline_planner.calc_spline_course(
+                ax,ay,ds=dl)
+            # pdb.set_trace()
+            return cx, cy, cyaw, ck
+    else:
+        print("FILE NOT FOUND, RETURNING EMPTY ARRAYS!!!")
+        print("Trying to read filename: ", file_name)
+
+    return cx, cy, cyaw, ck
+
 def get_vineyard_course(dl=1.0):
     ax = [2.4583730063, 6.7518804365, 10.8136917663, 11.5632410271, 11.9180539295, 11.0372334458, 9.7314,
         8.4255910527, 4.1747550788, 1.33828323, 0.3561238461, 0.2816183203, 1.3911472059, 5.5725694352, 11.3138612183]

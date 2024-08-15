@@ -33,5 +33,5 @@ def controller_client():
 
 
 if __name__ == '__main__':
-    rospy.init_node('mpc_controller_client')
+    rospy.init_node('mpc_controller_client_straight')
     controller_client()
