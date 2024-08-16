@@ -24,7 +24,7 @@ MAX_ITER = 30  # Max iteration
 DU_TH = 0.5  # iteration finish param
 
 TARGET_SPEED = 0.3#10.0 / 3.6  # [m/s] target speed
-MAX_TARGET_SPEED = 0.7#10.0 / 3.6  # [m/s] target speed, was 0.5
+MAX_TARGET_SPEED = 0.5#10.0 / 3.6  # [m/s] target speed, was 0.5
 MIN_TARGET_SPEED = 0.15# 0.210.0 / 3.6  # [m/s] target speed, was 0.1
 N_IND_SEARCH = 10  # Search index number
 T_RAMP_UP = 2. #0.5, was 1

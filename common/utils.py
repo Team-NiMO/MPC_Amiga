@@ -358,6 +358,11 @@ def calc_speed_profile_2(cx, cy, cyaw, target_speed):
 
     return speed_profile 
 
+def calc_speed_profile_3(sp):
+    window_size = 15
+    return mavg(sp, window_size=window_size)
+
+
 def mavg(array_in, window_size = 81): #remember to put an odd number here!
     length = len(array_in)
     count = window_size
