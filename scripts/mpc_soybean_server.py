@@ -116,7 +116,7 @@ class mpc_controller_server():
                 cmd.angular.z = 0
                 print("Goal Reached")
                 self.vel_down = defs.MIN_TARGET_SPEED
-                self.can_delete_file, self.nav_glob_finished = utils.delete_pruning_points_from_file(self.can_delete_file, self.nav_glob_finished)
+                # self.can_delete_file, self.nav_glob_finished = utils.delete_pruning_points_from_file(self.can_delete_file, self.nav_glob_finished)
                 rospy.set_param('nav_stat', True)
                 
             else:
@@ -233,7 +233,7 @@ class mpc_controller_server():
         index_pruning = 0
         
         while not rospy.is_shutdown():
-            prune_done = rospy.get_param("/pruning_status")    
+            # prune_done = rospy.get_param("/pruning_status")    
             self.viz_utils.pathPub.publish(current_path)
             self.viz_utils.publish_marker(ppx, ppy)
             if not prune_done or init_route:
