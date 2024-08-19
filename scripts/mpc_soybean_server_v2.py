@@ -216,7 +216,7 @@ class mpc_controller_server():
         else:
             self.turning = True
             global_sp = np.array(goal.global_sp)*defs.MAX_TARGET_SPEED
-            global_sp = global_sp.tolist()
+            global_sp = utils.calc_speed_profile_3(global_sp.tolist())
         # global_sp = utils.calc_speed_profile_2(global_cx, global_cy, global_cyaw, defs.TARGET_SPEED)
 
         #get the stopping points
