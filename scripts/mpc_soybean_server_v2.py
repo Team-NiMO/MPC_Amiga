@@ -101,7 +101,12 @@ class mpc_controller_server():
             #     cmd.linear.x = defs.MAX_TARGET_SPEED #cmd.linear.x = defs.TARGET_SPEED
             # elif cmd_vel_ < defs.MIN_TARGET_SPEED:
             #     cmd.linear.x = defs.MIN_TARGET_SPEED
-            cmd.linear.x = cmd_vel_
+
+            if cmd_vel_ > defs.MAX_TARGET_SPEED:
+                cmd.linear.x = defs.MAX_TARGET_SPEED
+            else:
+                cmd.linear.x = cmd_vel_
+            # cmd.linear.x = cmd_vel_
             if not warn_w:
                 cmd.angular.z =  self.w_up# + acc_omega*dt_in
             else:
@@ -215,7 +220,7 @@ class mpc_controller_server():
             global_sp = utils.calc_speed_profile_1(global_cx, global_cy, global_cyaw, global_ck)
         else:
             self.turning = True
-            global_sp = np.array(goal.global_sp)*defs.MAX_TARGET_SPEED
+            global_sp = np.array(goal.global_sp)*0.6#defs.MAX_TARGET_SPEED
             global_sp = utils.calc_speed_profile_3(global_sp.tolist())
         # global_sp = utils.calc_speed_profile_2(global_cx, global_cy, global_cyaw, defs.TARGET_SPEED)
 

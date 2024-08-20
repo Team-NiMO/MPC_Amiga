@@ -48,8 +48,8 @@ class Goal_reacher:
 		self.robot_position_odom = []
 		self.robot_position_gps = []
 		self.curr_time = Clock()
-		# self.sub = rospy.Subscriber('/odometry/filtered', Odometry, self.callback)
-		self.sub1 = rospy.Subscriber('rover/piksi/position_receiver_0/ros/transform_enu', TransformStamped, self.callback1)
+		self.sub = rospy.Subscriber('/odometry/filtered', Odometry, self.callback)
+		#self.sub1 = rospy.Subscriber('rover/piksi/position_receiver_0/ros/transform_enu', TransformStamped, self.callback1)
 		# self.sub2 = rospy.Subscriber('/clock', Clock, self.callback2 )
 		# self.sub3 = rospy.Subscriber('/imu/data', Imu, self.callback_yaw)
 		#self.sub3 = rospy.Subscriber('move_base/status', GoalStatusArray, self.callback3)
@@ -81,7 +81,7 @@ class Goal_reacher:
 if __name__ == "__main__":
 	
 	# f1 = 'data/2023-05-26/2023-05-26_flagstaff_oval_ekf.txt'
-	f2 = '/home/amiga/navigation_ws/src/mpc_controller/gps_coordinates/rows_real.txt'
+	f2 = '/home/amiga/catkin_workspaces/amiga_ws/src/MPC_Amiga/gps_coordinates/rows_real.txt'
 
 	mode = 'subsample'
 	subsample_rate = 20
