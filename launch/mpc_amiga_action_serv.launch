@@ -1,0 +1,7 @@
+<launch>
+	<arg name = "fresh_start" default="1" /> 
+	<param name="pruning_status" type="bool" value="1" />
+	<param name="nav_status" type="bool" value="1" />
+	<node pkg="mpc_amiga" type="mpc_soybean_server.py" name="robot_controller" args="$(arg fresh_start)" output="screen" />
+
+</launch>

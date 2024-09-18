@@ -97,7 +97,18 @@ class mpc_controller_server():
             #     cmd.linear.x = defs.MAX_TARGET_SPEED #cmd.linear.x = defs.TARGET_SPEED
             # elif cmd_vel_ < defs.MIN_TARGET_SPEED:
             #     cmd.linear.x = defs.MIN_TARGET_SPEED
-            cmd.linear.x = cmd_vel_
+            if cmd_vel_ >0:
+                if cmd_vel_ > defs.MAX_TARGET_SPEED:
+                    cmd.linear.x = defs.MAX_TARGET_SPEED
+                else:
+                    cmd.linear.x = cmd_vel_
+
+            if cmd_vel_ <0:
+                if cmd_vel_ < -defs.MAX_TARGET_SPEED:
+                    cmd.linear.x = -defs.MAX_TARGET_SPEED
+                else:
+                    cmd.linear.x = cmd_vel_
+                    
             if not warn_w:
                 cmd.angular.z =  self.w_up# + acc_omega*dt_in
             else:
@@ -116,6 +127,7 @@ class mpc_controller_server():
                 cmd.angular.z = 0
                 print("Goal Reached")
                 self.vel_down = defs.MIN_TARGET_SPEED
+                self.nav_glob_finished = True
                 # self.can_delete_file, self.nav_glob_finished = utils.delete_pruning_points_from_file(self.can_delete_file, self.nav_glob_finished)
                 rospy.set_param('nav_stat', True)
                 
@@ -186,6 +198,8 @@ class mpc_controller_server():
         result = plan_dispatchResult()
         result.success = False
 
+        self.nav_glob_finished = False
+
         rate = rospy.Rate(10) # 10hz
 
         init_route = 1
@@ -208,8 +222,10 @@ class mpc_controller_server():
         # global_sp = utils.calc_speed_profile_2(global_cx, global_cy, global_cyaw, defs.TARGET_SPEED)
 
         #get the stopping points
-        ppx, ppy = utils.get_pruning_points(is_fresh_start) #if is a fresh_start use the original_file, otherwise use the cropped one
-
+        # ppx, ppy = utils.get_pruning_points(is_fresh_start) #if is a fresh_start use the original_file, otherwise use the cropped one
+        ppx = [global_cx[-1]]
+        ppy = [global_cy[-1]]
+        
         cx, cy, cyaw, ck, sp = None, None, None, None, None
 
         #this is used to visualize the path on rviz
@@ -331,6 +347,7 @@ class mpc_controller_server():
                     result.success = True
                     self.server.set_succeeded(result)
                     print("Global navigation finished!!")
+                    return
                 self.controlPub.publish(cmd_command)
             rate.sleep()
 
