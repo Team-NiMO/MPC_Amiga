@@ -322,14 +322,14 @@ def make_twist_msg(accel, acc_omega, goalData, warn_w, yaw_meas, last_point):
                 # temp
             rospy.set_param('/nav_done', True)
 
-            # # if goal is last waypoint, then exit from navigation
-            # if abs(robot_state.get_current_pos_meas()[0] - last_point) <= 0.3:
+            # if goal is last waypoint, then exit from navigation
+            if abs(robot_state.get_current_pos_meas()[0] - last_point) <= 0.3:
 
-            #     print("Reached last point")
-            #     nav_glob_finished = True
-            #     cmd.linear.x = 0
-            #     cmd.angular.z = 0
-            #     vel_down = defs.MIN_TARGET_SPEED
+                print("Reached last point")
+                nav_glob_finished = True
+                cmd.linear.x = 0
+                cmd.angular.z = 0
+                vel_down = defs.MIN_TARGET_SPEED
 
         elif not rospy.get_param('/nav_done'):
             # this is called when robot is reaching goal

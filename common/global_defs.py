@@ -14,10 +14,10 @@ Rd = np.diag([0.01, 0.01])  # input difference cost matrix -> skid_steer
 Q = np.diag([1.0, 1.0, 1.0, 1.0, 0.01])  # state cost matrix ---  Q = np.diag([1.0, 1.0, 0.5, 1.0, 0.01]), Q = np.diag([1.0, 1.0, 1.0, 1.0, 0.01])
 Qf = np.diag([1.0, 1.0, 0.5, 1.0])  # state final matrix  Qf = np.diag([1.0, 1.0, 0.5, 1.0])  
 #Qf = np.diag([1.0, 1.0, 0.5, 5.0])
-GOAL_DIS = 0.6  # goal distance, was 0.5 abhi
+GOAL_DIS = 2.0  # goal distance, was 0.5 abhi
 STOP_SPEED = 0.5 / 3.6  # stop speed
 MAX_TIME = 1000.0  # max simulation time
-OFFSET_TO_GOAL = 15 # to trick the path planner and get a proper orientation at the pruning point, was 20
+OFFSET_TO_GOAL = 1 # to trick the path planner and get a proper orientation at the pruning point, was 20
 
 # iterative paramter
 MAX_ITER = 30  # Max iteration
@@ -25,12 +25,12 @@ DU_TH = 0.5  # iteration finish param
 
 TARGET_SPEED = 0.3#10.0 / 3.6  # [m/s] target speed
 MAX_TARGET_SPEED = 0.7#10.0 / 3.6  # [m/s] target speed, was 0.5
-MIN_TARGET_SPEED = 0.15# 0.210.0 / 3.6  # [m/s] target speed, was 0.1
+MIN_TARGET_SPEED = 0.3# 0.210.0 / 3.6  # [m/s] target speed, was 0.1
 N_IND_SEARCH = 10  # Search index number
 T_RAMP_UP = 2. #0.5, was 1
 T_RAMP_DOWN = 5. #, was 5.0
-DIST_TO_GOAL_STOP = 0.2  # abhi 0.15 this parameter controls the stoping distance to one pruning location, was 0.2
-
+DIST_TO_GOAL_STOP = 0.01  # abhi 0.15 this parameter controls the stoping distance to one pruning location, was 0.2
+DELTA_STEP_SPEED = 0.15
 # Vehicle parameters
 LENGTH = 4.5  # [m]
 WIDTH = 2.0  # [m]

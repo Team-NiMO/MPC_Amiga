@@ -601,8 +601,8 @@ def check_goal(current_pos, goal, tind, nind):
     print("Distance to goal", d)
     isgoal = (d <= defs.GOAL_DIS)
 
-    if abs(tind - nind) >= 50: #50
-        isgoal = False
+    #if abs(tind - nind) >= 50: #50
+        #isgoal = False
 
     # isstop = (abs(state.v) <= defs.STOP_SPEED)
     # if isgoal and isstop:
