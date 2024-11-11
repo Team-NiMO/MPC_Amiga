@@ -39,7 +39,9 @@ cp -i build_python/lib.linux-x86_64-2.7/acado.so ${PATH_TO_CATKIN_WS}/devel/lib/
 - The first step is to setup the RTK base station. Ensure that you don't set it too close to the testing location of the robot.
 #INSERT IMAGE OF THE SETUP
 - As seen in the above image, first connect the 5 pin Male power connector with DC jack connector at its end to the power connector on swift nav
-- Then connect the DC jack to the 
+- Then connect the DC jack to the power cable of the battery pack (as shown in figure)
+  You should see a 'Green LED' blinking indicating the base station and powered up and ready to communicate
+- Start the Amiga robot and before you run any command, you should see a 'Blue LED' blinking oon the RTK station mounted on the robot; this indicates that the communication is set-up successfully
 
 
 Now we move on to the first step of collecting waypoints - 
