@@ -1,5 +1,13 @@
-# MPC_Controller
-This implementation uses [Acado Toolkit](https://acado.github.io/index.html) to solve the optimization problem. We use qpoases to solve the linear quadratic programming. A python interface is also generated to use the solver with Python.
+# Description
+This repository was used for our MRSD capstone's Fall Validation Demonstration (FVD). It is a global navigation program which runs a MPC controller to follow some waypoints. The following file will describe everything from collecting waypoints to setting up the amiga robot to run the controller which follows these waypoints. This repository is an extension of [MPC_Amiga](https://github.com/Kantor-Lab/MPC_Amiga) by the members of Kantor Lab at CMU.
+
+# Installion
+First, clone the repository into the 'src' folder of your ROS workspace.
+'''
+git clone git@github.com:Team-NiMO/MPC_Amiga.git
+'''
+
+The next step is to install the Acado tookkit. This implementation uses [Acado Toolkit](https://acado.github.io/index.html) to solve the optimization problem. We use qpoases to solve the linear quadratic programming. A python interface is also generated to use the solver with Python.
 
 ## Acado set up
 - We need to set up and compile the problem definition. To do so, clone the Acado toolkit, and then place the file *src/simple_mpc_diff.cpp* in  *ACADOtoolkit/examples /getting_started/*. Then compile everything using cmake:
@@ -27,28 +35,32 @@ cp -i build_python/lib.linux-x86_64-2.7/acado.so ${PATH_TO_CATKIN_WS}/devel/lib/
 ```
 - After these steps, we should be able to import acado from Python, while in the ROS workspace.
 
-## Running the controller
-- Option 1: The version of the controller that has been tested in field is [v4](https://github.com/Kantor-Lab/MPC_Amiga/blob/master/scripts/mpc_warthog_v4_field.py). It implements a basic MPC to follow waypoints. They can be gathered by remote controllig the robot on the desired path, or using a drone map and giving waypoints. This version only is used to do "global navigation", which basically is driving the robot from the barn to the field.
-The controller will read the waypoints from the file [barn_field_waypoints](https://github.com/Kantor-Lab/MPC_Amiga/blob/master/gps_coordinates/barn_field_waypoints.txt). I
-    If the robot needs to stop in positions while executing the path, the stopping points need to be set in the file [stopping_points](https://github.com/Kantor-Lab/MPC_Amiga/blob/master/gps_coordinates/stopping_points.txt). In order to ensure the information is accessible to the robot in case of unexpected stops (e.g., e-button push or killing the control node), a copy of the stopping points need to be saved as [stopping_points_copied](https://github.com/Kantor-Lab/MPC_Amiga/blob/master/gps_coordinates/stopping_points_copied.txt).
+## Starting all the sensors
+- The first step is to setup the RTK base station. Ensure that you don't set it too close to the testing location of the robot.
+#INSERT IMAGE OF THE SETUP
+- As seen in the above image, first connect the 5 pin Male power connector with DC jack connector at its end to the power connector on swift nav
+- Then connect the DC jack to the 
 
-    To run, just launch the controller as:
-    ```
-    roslaunch mpc_amiga mpc_amiga.launch fresh_start:=1
-    ```
-    The fresh_start parameter tells the controller if it is starting from the barn (very begining of the path) or somewhere in the middle of the path.
 
-- Option 2: This version of the controller is written for integration with the [corn insertion team](https://github.com/Team-NiMO/NiMo-FSM). The desired behavior of the controller here is to handle "global navigation" and "local navigation". Global navigation is the case mentioned above. Local navigation default behaviour will wait for the planner given by [amiga path planner](https://github.com/Kantor-Lab/amiga_path_planning/tree/main) and will execute it.
+Now we move on to the first step of collecting waypoints - 
+## Collecting Waypoints
+To collect waypoint, amiga robot needs to be in manual mode. The way this process works is as follows -
+- The following command runs the script which collects waypoints
+  '''
+  cd /home/amiga/catkin_workspaces/nimo_ws/src/MPC_Amiga/scripts/
+  python3 collect_goals_mrsd.py
+  '''
+- Move robot to the waypoint location you want to collect and enter 'y' in the terminal whenever you want to save the location coordinate as waypoint
+- After you collect all the waypoints, simply exit from the script
+- Collected waypoints will be at the following location -
+  '''
+  cd /home/amiga/catkin_workspaces/nimo_ws/src/MPC_Amiga/gps_coordinates/rows_1.txt
+  '''
+  NOTE: The waypoints collected before might still be there in the file, the new waypoints collected will be appended after them
+  - Copy all the coordinates from the above file to 'barn_field_waypoints.txt' file which is located in the same folder
+  NOTE: To avoid confusion because of the previous step, after you copy the points to 'barn_field_waypoints.txt', delete the points from rows_1.txt file (This issue needs to be fixed, and hopefully someday I will do it)
+- Copy the last coordinate to pruning_points_real.txt file twice - this specifies the last waypoint (i.e. indicating the robot has reached the end of row), after which the robot should navigate to the next row
+- Copy other coordinates (for our usecase: except the first point because that specifies the barn waypoint) to stopping_points.txt file - this specifies the waypoint locations the robot should stop at
 
-    In order to make a difference between the two cases, three parameters are used:
-    *fresh_start*: 1 if we are starting at the begining of the path, 0 if needed to stop and restarting the run. Applies for both local and global navigation. Does not have a default, need to be set.
-    *barn_field*: True for global navigation, false for local navigation. Default is True.
-    *load_backup_plan*: This is a debug flag. Every time the controller receives a path from the planner, it saves it to a [file](https://github.com/Kantor-Lab/MPC_Amiga/blob/master/gps_coordinates/field_waypoints.txt). If for some reason, we need to load a previously generated path, set this flag to True. Default is False.
-
-    To run the controller in mode "local navigation", do
-    ```
-    roslaunch mpc_amiga mpc_amiga_corn_ins.launch fresh_start:=1 barn_field:=false load_backup_plan:=false
-    ```
-    This will wait for a plan generated by the planner in order to follow it.
-
+At this point you are all ready to start the controller
 
