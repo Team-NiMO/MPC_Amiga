@@ -37,7 +37,9 @@ cp -i build_python/lib.linux-x86_64-2.7/acado.so ${PATH_TO_CATKIN_WS}/devel/lib/
 
 ## Starting all the sensors
 - The first step is to setup the RTK base station. Ensure that you don't set it too close to the testing location of the robot.
+  
 <img src="https://github.com/Team-NiMO/MPC_Amiga/blob/main/assets/swiftnav.png" width="650">
+
 - As seen in the above image, first connect the 5 pin Male power connector with DC jack connector at its end to the power connector on swift nav
 - Then connect the DC jack to the power cable of the battery pack (as shown in figure)
   You should see a 'Green LED' blinking indicating the base station and powered up and ready to communicate
