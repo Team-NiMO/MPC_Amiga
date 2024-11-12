@@ -42,21 +42,34 @@ cp -i build_python/lib.linux-x86_64-2.7/acado.so ${PATH_TO_CATKIN_WS}/devel/lib/
 - Then connect the DC jack to the power cable of the battery pack (as shown in figure)
   You should see a 'Green LED' blinking indicating the base station and powered up and ready to communicate
 - Start the Amiga robot and before you run any command, you should see a 'Blue LED' blinking oon the RTK station mounted on the robot; this indicates that the communication is set-up successfully
-
+- Run the following commands to startup all sensors (run all the command in separate terminals)
+'''
+1. roscore
+2. sudo systemctl start initializeCAN
+3. cd catkin_workspaces/amiga_ws
+   source devel/setup.bash
+   roslaunch launchers nav_sensors.launch
+   # This command might throw error if the port of IMU sensor changes. If it has changed then, check the port to which IMU is connected using 'dmesg' and go to the following location to change the port -
+   cd catkin_workspaces/amiga_ws/..... TODO
+4. cd catkin_workspaces/amiga_ws
+   source devel/setup.bash
+   roslaunch robot_localization amiga_imu_gps.launch
+'''
+These commands will start all the sensors and you are ready to go to collect waypoints and start the controller.
 
 Now we move on to the first step of collecting waypoints - 
 ## Collecting Waypoints
 To collect waypoint, amiga robot needs to be in manual mode. The way this process works is as follows -
 - The following command runs the script which collects waypoints
   '''
-  cd /home/amiga/catkin_workspaces/nimo_ws/src/MPC_Amiga/scripts/
+  cd catkin_workspaces/nimo_ws/src/MPC_Amiga/scripts/
   python3 collect_goals_mrsd.py
   '''
 - Move robot to the waypoint location you want to collect and enter 'y' in the terminal whenever you want to save the location coordinate as waypoint
 - After you collect all the waypoints, simply exit from the script
 - Collected waypoints will be at the following location -
   '''
-  cd /home/amiga/catkin_workspaces/nimo_ws/src/MPC_Amiga/gps_coordinates/rows_1.txt
+  cd catkin_workspaces/nimo_ws/src/MPC_Amiga/gps_coordinates/rows_1.txt
   '''
   NOTE: The waypoints collected before might still be there in the file, the new waypoints collected will be appended after them
   - Copy all the coordinates from the above file to 'barn_field_waypoints.txt' file which is located in the same folder
@@ -66,3 +79,10 @@ To collect waypoint, amiga robot needs to be in manual mode. The way this proces
 
 At this point you are all ready to start the controller
 
+## Starting the Controller
+The command to start controller is - 
+'''
+cd catkin_workspaces/nimo_ws/
+source devel/setup.bash
+roslaunch mpc_amiga mpc_amiga_mrsd.launch fresh_start:=1
+'''
