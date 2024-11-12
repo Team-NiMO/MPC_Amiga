@@ -73,9 +73,9 @@ To collect waypoint, amiga robot needs to be in manual mode. The way this proces
   ```
   NOTE: The waypoints collected before might still be there in the file, the new waypoints collected will be appended after them
   - Copy all the coordinates from the above file to 'barn_field_waypoints.txt' file which is located in the same folder
-  NOTE: To avoid confusion because of the previous step, after you copy the points to 'barn_field_waypoints.txt', delete the points from rows_1.txt file (This issue needs to be fixed, and hopefully someday I will do it)
-- Copy the last coordinate to pruning_points_real.txt file twice - this specifies the last waypoint (i.e. indicating the robot has reached the end of row), after which the robot should navigate to the next row
-- Copy other coordinates (for our usecase: except the first point because that specifies the barn waypoint) to stopping_points.txt file - this specifies the waypoint locations the robot should stop at
+  NOTE: To avoid confusion because of the previous step, after you copy the points to '**barn_field_waypoints.txt**', delete the points from rows_1.txt file (This issue needs to be fixed, and hopefully someday I will do it)
+- Copy the last coordinate to **pruning_points_real.txt** file twice - this specifies the last waypoint (i.e. indicating the robot has reached the end of row), after which the robot should navigate to the next row
+- Copy other coordinates (for our usecase: except the first point because that specifies the barn waypoint) to **stopping_points.txt** file - this specifies the waypoint locations the robot should stop at
 
 At this point you are all ready to start the controller
 
