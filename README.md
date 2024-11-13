@@ -56,6 +56,7 @@ cp -i build_python/lib.linux-x86_64-2.7/acado.so ${PATH_TO_CATKIN_WS}/devel/lib/
 4. cd catkin_workspaces/amiga_ws
    source devel/setup.bash
    roslaunch robot_localization amiga_imu_gps.launch
+   NOTE: This command will launch rviz. You must drive the robot forward manually to orient itself with RTK base station.
 ```
 These commands will start all the sensors and you are ready to go to collect waypoints and start the controller.
 
